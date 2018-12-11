@@ -64,6 +64,8 @@ void USpatialWorkerConnection::ConnectToReceptionist(bool bConnectAsClient)
 	FTCHARToUTF8 WorkerTypeCStr(*ReceptionistConfig.WorkerType);
 	ConnectionParams.worker_type = WorkerTypeCStr.Get();
 	ConnectionParams.enable_protocol_logging_at_startup = ReceptionistConfig.EnableProtocolLoggingAtStartup;
+	FTCHARToUTF8 Temp(*(ReceptionistConfig.WorkerType + FString::FromInt(GPlayInEditorID)));
+	ConnectionParams.protocol_logging.log_prefix = Temp.Get();
 
 	Worker_ComponentVtable DefaultVtable = {};
 	ConnectionParams.component_vtable_count = 0;

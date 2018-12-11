@@ -102,7 +102,7 @@ void USpatialReceiver::LeaveCriticalSection()
 
 void USpatialReceiver::OnAddEntity(Worker_AddEntityOp& Op)
 {
-	UE_LOG(LogSpatialReceiver, Verbose, TEXT("AddEntity: %lld"), Op.entity_id);
+	UE_LOG(LogSpatialReceiver, Warning, TEXT("AddEntity: %lld <%s%d> .GPlayInEditorID"), Op.entity_id, GPlayInEditorID == 1 ? TEXT("Server") : TEXT("Client"), GPlayInEditorID);
 
 	check(bInCriticalSection);
 
@@ -152,6 +152,7 @@ void USpatialReceiver::OnAddComponent(Worker_AddComponentOp& Op)
 
 void USpatialReceiver::OnRemoveEntity(Worker_RemoveEntityOp& Op)
 {
+	UE_LOG(LogSpatialReceiver, Warning, TEXT("RemoveEntity: %lld <%s%d> .GPlayInEditorID"), Op.entity_id, GPlayInEditorID == 1 ? TEXT("Server") : TEXT("Client"), GPlayInEditorID);
 	RemoveActor(Op.entity_id);
 }
 
@@ -312,6 +313,10 @@ void USpatialReceiver::ReceiveActor(Worker_EntityId EntityId)
 		{
 			UE_LOG(LogSpatialReceiver, Verbose, TEXT("Spawning a %s whilst checking out an entity."), *ActorClass->GetFullName());
 
+			if (EntityId == 64 || EntityId == 61)
+			{
+				UE_LOG(LogSpatialReceiver, Warning, TEXT("Creating EntityID: %lld <%s%d> .GPlayInEditorID"), EntityId, GPlayInEditorID == 1 ? TEXT("Server") : TEXT("Client"), GPlayInEditorID);
+			}
 			EntityActor = CreateActor(Position, Rotation, ActorClass, true);
 
 			// Don't have authority over Actor until SpatialOS delegates authority
@@ -350,6 +355,11 @@ void USpatialReceiver::ReceiveActor(Worker_EntityId EntityId)
 
 		if (bDoingDeferredSpawn)
 		{
+			if (EntityId == 64 || EntityId == 61)
+			{
+				UE_LOG(LogSpatialReceiver, Warning, TEXT("Finish spawning EntityID: %lld <%s%d> .GPlayInEditorID"), EntityId, GPlayInEditorID == 1 ? TEXT("Server") : TEXT("Client"), GPlayInEditorID);
+			}
+
 			FVector InitialLocation = improbable::Coordinates::ToFVector(Position->Coords);
 			FVector SpawnLocation = FRepMovement::RebaseOntoLocalOrigin(InitialLocation, World->OriginLocation);
 			EntityActor->FinishSpawning(FTransform(Rotation->ToFRotator(), SpawnLocation));

@@ -33,10 +33,13 @@ void USpatialDispatcher::ProcessOps(Worker_OpList* OpList)
 		// Entity Lifetime
 		case WORKER_OP_TYPE_ADD_ENTITY:
 			Receiver->OnAddEntity(Op->add_entity);
+			UE_LOG(LogTemp, Warning, TEXT("USpatialDispatcher::ProcessOps Add EntityId: %d <%s%d> .GPlayInEditorID"), Op->add_entity.entity_id, GPlayInEditorID == 1 ? TEXT("Server") : TEXT("Client"), GPlayInEditorID);
 			break;
 		case WORKER_OP_TYPE_REMOVE_ENTITY:
 			Receiver->OnRemoveEntity(Op->remove_entity);
 			StaticComponentView->OnRemoveEntity(Op->remove_entity);
+			UE_LOG(LogTemp, Warning, TEXT("USpatialDispatcher::ProcessOps Remove EntityId: %d <%s%d> .GPlayInEditorID"), Op->add_entity.entity_id, GPlayInEditorID == 1 ? TEXT("Server") : TEXT("Client"), GPlayInEditorID);
+
 			break;
 
 		// Components
