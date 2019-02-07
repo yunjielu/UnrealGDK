@@ -103,6 +103,9 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentWriteAcl.Add(SpatialConstants::INTEREST_COMPONENT_ID, ServersOnly);
 	ComponentWriteAcl.Add(SpatialConstants::SPAWN_DATA_COMPONENT_ID, ServersOnly);
 	ComponentWriteAcl.Add(SpatialConstants::ENTITY_ACL_COMPONENT_ID, ServersOnly);
+	ComponentWriteAcl.Add(SpatialConstants::SERVER_RPCS_COMPONENT_ID, ServersOnly);
+	ComponentWriteAcl.Add(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID, ServersOnly);
+	ComponentWriteAcl.Add(SpatialConstants::CLIENT_RPCS_COMPONENT_ID, OwningClientOnly);
 
 	ForAllSchemaComponentTypes([&](ESchemaComponentType Type)
 	{
@@ -112,8 +115,8 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 			return;
 		}
 
-		WorkerRequirementSet& RequirementSet = Type == SCHEMA_ClientRPC ? OwningClientOnly : ServersOnly;
-		ComponentWriteAcl.Add(ComponentId, RequirementSet);
+		//WorkerRequirementSet& RequirementSet = Type == SCHEMA_ClientRPC ? OwningClientOnly : ServersOnly;
+		ComponentWriteAcl.Add(ComponentId, ServersOnly);
 	});
 
 	for (auto& SubobjectInfoPair : Info.SubobjectInfo)
@@ -135,8 +138,8 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 				return;
 			}
 
-			WorkerRequirementSet& RequirementSet = Type == SCHEMA_ClientRPC ? OwningClientOnly : ServersOnly;
-			ComponentWriteAcl.Add(ComponentId, RequirementSet);
+			//WorkerRequirementSet& RequirementSet = Type == SCHEMA_ClientRPC ? OwningClientOnly : ServersOnly;
+			ComponentWriteAcl.Add(ComponentId, ServersOnly);
 		});
 	}
 
@@ -182,6 +185,10 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 		}
 	}
 
+	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::CLIENT_RPCS_COMPONENT_ID));
+	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::SERVER_RPCS_COMPONENT_ID));
+	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID));
+
 	for (auto& SubobjectInfoPair : Info.SubobjectInfo)
 	{
 		FClassInfo& SubobjectInfo = SubobjectInfoPair.Value.Get();
@@ -213,13 +220,13 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 			QueueOutgoingUpdate(Channel, Subobject.Get(), HandleUnresolvedObjectsPair.Key, HandleUnresolvedObjectsPair.Value, /* bIsHandover */ true);
 		}
 
-		for (int32 RPCType = SCHEMA_ClientRPC; RPCType < SCHEMA_Count; RPCType++)
-		{
-			if (SubobjectInfo.SchemaComponents[RPCType] != SpatialConstants::INVALID_COMPONENT_ID)
-			{
-				ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SubobjectInfo.SchemaComponents[RPCType]));
-			}
-		}
+		//for (int32 RPCType = SCHEMA_ClientRPC; RPCType < SCHEMA_Count; RPCType++)
+		//{
+		//	if (SubobjectInfo.SchemaComponents[RPCType] != SpatialConstants::INVALID_COMPONENT_ID)
+		//	{
+		//		ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SubobjectInfo.SchemaComponents[RPCType]));
+		//	}
+		//}
 	}
 
 	Worker_EntityId EntityId = Channel->GetEntityId();
@@ -406,7 +413,9 @@ void USpatialSender::SendRPC(TSharedRef<FPendingRPCParams> Params)
 		ReliableRPCIndex = Params->ReliableRPCIndex;
 #endif // !UE_BUILD_SHIPPING
 
-		Worker_CommandRequest CommandRequest = CreateRPCCommandRequest(TargetObject, Params->Function, Params->Parameters.GetData(), Info.SchemaComponents[RPCInfo->Type], RPCInfo->Index + 1, EntityId, UnresolvedObject, ReliableRPCIndex);
+		Worker_ComponentId ComponentId = RPCInfo->Type == SCHEMA_ClientRPC ? SpatialConstants::CLIENT_RPCS_COMPONENT_ID : SpatialConstants::SERVER_RPCS_COMPONENT_ID;
+
+		Worker_CommandRequest CommandRequest = CreateRPCCommandRequest(TargetObject, Params->Function, Params->Parameters.GetData(), ComponentId, RPCInfo->Index, EntityId, UnresolvedObject, ReliableRPCIndex);
 
 		if (!UnresolvedObject)
 		{
@@ -424,8 +433,24 @@ void USpatialSender::SendRPC(TSharedRef<FPendingRPCParams> Params)
 		break;
 	}
 	case SCHEMA_NetMulticastRPC:
+	case SCHEMA_ClientUnreliableRPC:
+	case SCHEMA_ServerUnreliableRPC:
 	{
-		Worker_ComponentUpdate ComponentUpdate = CreateMulticastUpdate(TargetObject, Params->Function, Params->Parameters.GetData(), Info.SchemaComponents[RPCInfo->Type], RPCInfo->Index + 1, EntityId, UnresolvedObject);
+		Worker_ComponentId ComponentId;
+		if (RPCInfo->Type == SCHEMA_ClientUnreliableRPC)
+		{
+			ComponentId = SpatialConstants::SERVER_RPCS_COMPONENT_ID;
+		}
+		else if (RPCInfo->Type == SCHEMA_ServerUnreliableRPC)
+		{
+			ComponentId = SpatialConstants::CLIENT_RPCS_COMPONENT_ID;
+		}
+		else
+		{
+			ComponentId = SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID;
+		}
+
+		Worker_ComponentUpdate ComponentUpdate = CreateMulticastUpdate(TargetObject, Params->Function, Params->Parameters.GetData(), ComponentId, RPCInfo->Index, EntityId, UnresolvedObject);
 
 		if (!UnresolvedObject)
 		{
@@ -597,7 +622,7 @@ Worker_CommandRequest USpatialSender::CreateRPCCommandRequest(UObject* TargetObj
 {
 	Worker_CommandRequest CommandRequest = {};
 	CommandRequest.component_id = ComponentId;
-	CommandRequest.schema_type = Schema_CreateCommandRequest(ComponentId, CommandIndex);
+	CommandRequest.schema_type = Schema_CreateCommandRequest(ComponentId, 1);
 	Schema_Object* RequestObject = Schema_GetCommandRequestObject(CommandRequest.schema_type);
 
 	FUnrealObjectRef TargetObjectRef(PackageMap->GetUnrealObjectRefFromNetGUID(PackageMap->GetNetGUIDFromObject(TargetObject)));
@@ -634,7 +659,9 @@ Worker_CommandRequest USpatialSender::CreateRPCCommandRequest(UObject* TargetObj
 		}
 	}
 
-	AddBytesToSchema(RequestObject, 1, PayloadWriter);
+	Schema_AddUint32(RequestObject, 1, TargetObjectRef.Offset);
+	Schema_AddUint32(RequestObject, 2, CommandIndex);
+	AddBytesToSchema(RequestObject, 3, PayloadWriter);
 
 	return CommandRequest;
 }
@@ -646,7 +673,7 @@ Worker_ComponentUpdate USpatialSender::CreateMulticastUpdate(UObject* TargetObje
 	ComponentUpdate.component_id = ComponentId;
 	ComponentUpdate.schema_type = Schema_CreateComponentUpdate(ComponentId);
 	Schema_Object* EventsObject = Schema_GetComponentUpdateEvents(ComponentUpdate.schema_type);
-	Schema_Object* EventData = Schema_AddObject(EventsObject, EventIndex);
+	Schema_Object* EventData = Schema_AddObject(EventsObject, 1);
 
 	FUnrealObjectRef TargetObjectRef(PackageMap->GetUnrealObjectRefFromNetGUID(PackageMap->GetNetGUIDFromObject(TargetObject)));
 	if (TargetObjectRef == FUnrealObjectRef::UNRESOLVED_OBJECT_REF)
@@ -675,7 +702,9 @@ Worker_ComponentUpdate USpatialSender::CreateMulticastUpdate(UObject* TargetObje
 		}
 	}
 
-	AddBytesToSchema(EventData, 1, PayloadWriter);
+	Schema_AddUint32(EventData, 1, TargetObjectRef.Offset);
+	Schema_AddUint32(EventData, 2, EventIndex);
+	AddBytesToSchema(EventData, 3, PayloadWriter);
 
 	return ComponentUpdate;
 }

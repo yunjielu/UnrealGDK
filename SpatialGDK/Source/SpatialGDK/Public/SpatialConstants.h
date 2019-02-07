@@ -23,13 +23,16 @@ enum ESchemaComponentType : int32
 	SCHEMA_OwnerOnly,
 	SCHEMA_Handover,
 
+	SCHEMA_Count,
+
 	// RPCs
 	SCHEMA_ClientRPC,
+	SCHEMA_ClientUnreliableRPC,
 	SCHEMA_ServerRPC,
+	SCHEMA_ServerUnreliableRPC,
 	SCHEMA_NetMulticastRPC,
 	SCHEMA_CrossServerRPC,
 
-	SCHEMA_Count,
 
 	// Iteration helpers
 	SCHEMA_Begin = SCHEMA_Data,
@@ -105,6 +108,10 @@ namespace SpatialConstants
 	const Worker_ComponentId SINGLETON_MANAGER_COMPONENT_ID					= 100005;
 	const Worker_ComponentId DEPLOYMENT_MAP_COMPONENT_ID					= 100006;
 	const Worker_ComponentId STARTING_GENERATED_COMPONENT_ID				= 100010;
+
+	const Worker_ComponentId CLIENT_RPCS_COMPONENT_ID = 100007;
+	const Worker_ComponentId SERVER_RPCS_COMPONENT_ID = 100008;
+	const Worker_ComponentId NETMULTICAST_RPCS_COMPONENT_ID = 100009;
 
 	const Schema_FieldId GLOBAL_STATE_MANAGER_MAP_URL_ID			= 1;
 	const Schema_FieldId GLOBAL_STATE_MANAGER_ACCEPTING_PLAYERS_ID	= 2;
