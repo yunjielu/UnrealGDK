@@ -71,6 +71,12 @@ void USpatialWorkerConnection::ConnectToReceptionist(bool bConnectAsClient)
 
 	// TODO: Move creation of connection parameters into a function somehow - UNR:579
 	Worker_ConnectionParameters ConnectionParams = Worker_DefaultConnectionParameters();
+
+	ConnectionParams.network.kcp.send_window_size = 5000;
+	ConnectionParams.network.kcp.recv_window_size = 5000;
+
+	ConnectionParams.network.kcp.update_interval_millis = 2;
+
 	FTCHARToUTF8 WorkerTypeCStr(*ReceptionistConfig.WorkerType);
 	ConnectionParams.worker_type = WorkerTypeCStr.Get();
 	ConnectionParams.enable_protocol_logging_at_startup = ReceptionistConfig.EnableProtocolLoggingAtStartup;
