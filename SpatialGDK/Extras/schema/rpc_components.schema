@@ -22,6 +22,6 @@ component UnrealServerRPCs {
 }
 
 component UnrealNetMulticastRPCs {
-    id = 1000010;
+    id = 100010;
     event UnrealPayload netmulticast_rpcs;
 }
