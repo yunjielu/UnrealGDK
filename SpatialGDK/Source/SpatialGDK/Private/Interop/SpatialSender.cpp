@@ -143,13 +143,23 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 		});
 	}
 
+	// Only want to have a stably object ref if this Actor is stably named.
+	// We use this to indiciate if a new Actor should be created or to link a pre-existing Actor
+	// when receiving an AddEntityOp.
+	TSchemaOption<FUnrealObjectRef> StablyNamedObjectRef;
+	if (Actor->IsFullNameStableForNetworking())
+	{
+		FUnrealObjectRef OuterObjectRef = PackageMap->GetUnrealObjectRefFromObject(Actor->GetOuter());
+		StablyNamedObjectRef = FUnrealObjectRef(0, 0, Actor->GetFName().ToString(), OuterObjectRef);
+	}
+
 	TArray<Worker_ComponentData> ComponentDatas;
 	ComponentDatas.Add(improbable::Position(improbable::Coordinates::FromFVector(Channel->GetActorSpatialPosition(Actor))).CreatePositionData());
 	ComponentDatas.Add(improbable::Metadata(Class->GetName()).CreateMetadataData());
 	ComponentDatas.Add(improbable::EntityAcl(ReadAcl, ComponentWriteAcl).CreateEntityAclData());
 	ComponentDatas.Add(improbable::Persistence().CreatePersistenceData());
 	ComponentDatas.Add(improbable::SpawnData(Actor).CreateSpawnDataData());
-	ComponentDatas.Add(improbable::UnrealMetadata({}, ClientWorkerAttribute, Class->GetPathName()).CreateUnrealMetadataData());
+	ComponentDatas.Add(improbable::UnrealMetadata(StablyNamedObjectRef, ClientWorkerAttribute, Class->GetPathName()).CreateUnrealMetadataData());
 	ComponentDatas.Add(improbable::Interest().CreateInterestData());
 
 	if (Class->HasAnySpatialClassFlags(SPATIALCLASS_Singleton))
@@ -336,6 +346,11 @@ TArray<Worker_InterestOverride> USpatialSender::CreateComponentInterest(AActor* 
 		FClassInfo& SubobjectInfo = SubobjectInfoPair.Value.Get();
 		FillComponentInterests(SubobjectInfo, bIsNetOwned, ComponentInterest);
 	}
+
+	Worker_InterestOverride ClientRPCsInterest = { SpatialConstants::CLIENT_RPCS_COMPONENT_ID, bIsNetOwned };
+	ComponentInterest.Add(ClientRPCsInterest);
+	Worker_InterestOverride ServerRPCsInterest = { SpatialConstants::SERVER_RPCS_COMPONENT_ID, bIsNetOwned };
+	ComponentInterest.Add(ServerRPCsInterest);
 
 	return ComponentInterest;
 }
@@ -851,17 +866,17 @@ bool USpatialSender::UpdateEntityACLs(AActor* Actor, Worker_EntityId EntityId)
 	WorkerAttributeSet OwningClientAttribute = { OwnerWorkerAttribute };
 	WorkerRequirementSet OwningClientOnly = { OwningClientAttribute };
 
-	EntityACL->ComponentWriteAcl.Add(Info.SchemaComponents[SCHEMA_ClientRPC], OwningClientOnly);
+	EntityACL->ComponentWriteAcl.Add(SpatialConstants::CLIENT_RPCS_COMPONENT_ID, OwningClientOnly);
 
-	for (auto& SubobjectInfoPair : Info.SubobjectInfo)
-	{
-		const FClassInfo& SubobjectInfo = SubobjectInfoPair.Value.Get();
+	//for (auto& SubobjectInfoPair : Info.SubobjectInfo)
+	//{
+	//	const FClassInfo& SubobjectInfo = SubobjectInfoPair.Value.Get();
 
-		if (SubobjectInfo.SchemaComponents[SCHEMA_ClientRPC] != SpatialConstants::INVALID_COMPONENT_ID)
-		{
-			EntityACL->ComponentWriteAcl.Add(SubobjectInfo.SchemaComponents[SCHEMA_ClientRPC], OwningClientOnly);
-		}
-	}
+	//	if (SubobjectInfo.SchemaComponents[SCHEMA_ClientRPC] != SpatialConstants::INVALID_COMPONENT_ID)
+	//	{
+	//		EntityACL->ComponentWriteAcl.Add(SubobjectInfo.SchemaComponents[SCHEMA_ClientRPC], OwningClientOnly);
+	//	}
+	//}
 
 	Worker_ComponentUpdate Update = EntityACL->CreateEntityAclUpdate();
 
