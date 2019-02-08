@@ -837,15 +837,6 @@ void USpatialReceiver::HandleUnreliableRPC(Worker_ComponentUpdateOp& Op)
 
 		UFunction* Function = ClassInfo.RPCs[Index];
 
-		if (NetDriver->IsServer())
-		{
-			UE_LOG(LogSpatialReceiver, Error, TEXT("SERVER received event %s"), *Function->GetName());
-		}
-		else
-		{
-			UE_LOG(LogSpatialReceiver, Error, TEXT("CLIENT %s received event %s entity id %d"), *NetDriver->Connection->GetWorkerId(), *Function->GetName(), EntityId);
-		}
-
 		ApplyRPC(TargetObject, Function, PayloadData, CountBits, FString());
 	}
 }
