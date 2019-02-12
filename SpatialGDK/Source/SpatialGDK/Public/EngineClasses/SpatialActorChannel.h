@@ -57,7 +57,7 @@ public:
 			return false;
 		}
 
-		return NetDriver->StaticComponentView->HasAuthority(EntityId, SpatialConstants::CLIENT_RPCS_COMPONENT_ID);
+		return NetDriver->StaticComponentView->HasAuthority(EntityId, SpatialConstants::CLIENT_AUTHORITY_COMPONENT_ID);
 	}
 
 	FORCEINLINE bool IsOwnedByWorker() const
@@ -65,7 +65,7 @@ public:
 		const FClassInfo& Info = NetDriver->ClassInfoManager->GetOrCreateClassInfoByClass(Actor->GetClass());
 
 		const TArray<FString>& WorkerAttributes = NetDriver->Connection->GetWorkerAttributes();
-		if (const WorkerRequirementSet* WorkerRequirementsSet = NetDriver->StaticComponentView->GetComponentData<improbable::EntityAcl>(EntityId)->ComponentWriteAcl.Find(SpatialConstants::CLIENT_RPCS_COMPONENT_ID))
+		if (const WorkerRequirementSet* WorkerRequirementsSet = NetDriver->StaticComponentView->GetComponentData<improbable::EntityAcl>(EntityId)->ComponentWriteAcl.Find(SpatialConstants::CLIENT_AUTHORITY_COMPONENT_ID))
 		{
 			for (const WorkerAttributeSet& AttributeSet : *WorkerRequirementsSet)
 			{

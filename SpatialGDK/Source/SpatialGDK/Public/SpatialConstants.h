@@ -111,6 +111,7 @@ namespace SpatialConstants
 	const Worker_ComponentId CLIENT_RPCS_COMPONENT_ID = 100008;
 	const Worker_ComponentId SERVER_RPCS_COMPONENT_ID = 100009;
 	const Worker_ComponentId NETMULTICAST_RPCS_COMPONENT_ID = 100010;
+	const Worker_ComponentId CLIENT_AUTHORITY_COMPONENT_ID = 100011;
 
 	const Worker_ComponentId STARTING_GENERATED_COMPONENT_ID				= 101000;
 

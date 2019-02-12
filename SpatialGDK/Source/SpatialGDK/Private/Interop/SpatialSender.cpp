@@ -106,6 +106,7 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentWriteAcl.Add(SpatialConstants::SERVER_RPCS_COMPONENT_ID, ServersOnly);
 	ComponentWriteAcl.Add(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID, ServersOnly);
 	ComponentWriteAcl.Add(SpatialConstants::CLIENT_RPCS_COMPONENT_ID, OwningClientOnly);
+	ComponentWriteAcl.Add(SpatialConstants::CLIENT_AUTHORITY_COMPONENT_ID, OwningClientOnly);
 
 	ForAllSchemaComponentTypes([&](ESchemaComponentType Type)
 	{
@@ -195,6 +196,7 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 		}
 	}
 
+	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::CLIENT_AUTHORITY_COMPONENT_ID));
 	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::CLIENT_RPCS_COMPONENT_ID));
 	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::SERVER_RPCS_COMPONENT_ID));
 	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID));
@@ -867,6 +869,7 @@ bool USpatialSender::UpdateEntityACLs(AActor* Actor, Worker_EntityId EntityId)
 	WorkerRequirementSet OwningClientOnly = { OwningClientAttribute };
 
 	EntityACL->ComponentWriteAcl.Add(SpatialConstants::CLIENT_RPCS_COMPONENT_ID, OwningClientOnly);
+	EntityACL->ComponentWriteAcl.Add(SpatialConstants::CLIENT_AUTHORITY_COMPONENT_ID, OwningClientOnly);
 
 	//for (auto& SubobjectInfoPair : Info.SubobjectInfo)
 	//{
