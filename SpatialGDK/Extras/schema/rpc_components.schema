@@ -11,12 +11,12 @@ type UnrealPayload {
 
 component UnrealClientAuthority {
     id = 100011;
+    command UnrealRPCCommandResponse unreal_client_reliable_rpcs(UnrealPayload);
 }
 
 component UnrealClientRPCs {
     id = 100008;
     event UnrealPayload server_unreliable_rpcs;
-    command UnrealRPCCommandResponse unreal_client_reliable_rpcs(UnrealPayload);
 }
 
 component UnrealServerRPCs {

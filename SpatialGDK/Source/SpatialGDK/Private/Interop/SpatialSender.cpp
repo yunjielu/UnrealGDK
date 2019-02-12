@@ -430,7 +430,7 @@ void USpatialSender::SendRPC(TSharedRef<FPendingRPCParams> Params)
 		ReliableRPCIndex = Params->ReliableRPCIndex;
 #endif // !UE_BUILD_SHIPPING
 
-		Worker_ComponentId ComponentId = RPCInfo->Type == SCHEMA_ClientRPC ? SpatialConstants::CLIENT_RPCS_COMPONENT_ID : SpatialConstants::SERVER_RPCS_COMPONENT_ID;
+		Worker_ComponentId ComponentId = RPCInfo->Type == SCHEMA_ClientRPC ? SpatialConstants::CLIENT_AUTHORITY_COMPONENT_ID : SpatialConstants::SERVER_RPCS_COMPONENT_ID;
 
 		Worker_CommandRequest CommandRequest = CreateRPCCommandRequest(TargetObject, Params->Function, Params->Parameters.GetData(), ComponentId, RPCInfo->Index, EntityId, UnresolvedObject, ReliableRPCIndex);
 
