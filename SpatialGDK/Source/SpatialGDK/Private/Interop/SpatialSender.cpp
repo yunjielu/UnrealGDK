@@ -349,8 +349,6 @@ TArray<Worker_InterestOverride> USpatialSender::CreateComponentInterest(AActor* 
 		FillComponentInterests(SubobjectInfo, bIsNetOwned, ComponentInterest);
 	}
 
-	Worker_InterestOverride ClientRPCsInterest = { SpatialConstants::CLIENT_RPCS_COMPONENT_ID, bIsNetOwned };
-	ComponentInterest.Add(ClientRPCsInterest);
 	Worker_InterestOverride ServerRPCsInterest = { SpatialConstants::SERVER_RPCS_COMPONENT_ID, bIsNetOwned };
 	ComponentInterest.Add(ServerRPCsInterest);
 
@@ -473,7 +471,7 @@ void USpatialSender::SendRPC(TSharedRef<FPendingRPCParams> Params)
 		{
 			check(EntityId != SpatialConstants::INVALID_ENTITY_ID);
 
-			if (!NetDriver->StaticComponentView->HasAuthority(EntityId, ComponentUpdate.component_id))
+			if (ComponentId != SpatialConstants::CLIENT_RPCS_COMPONENT_ID && !NetDriver->StaticComponentView->HasAuthority(EntityId, ComponentUpdate.component_id))
 			{
 				UE_LOG(LogSpatialSender, Warning, TEXT("Trying to send MulticastRPC component update but don't have authority! Update will not be sent. Entity: %lld"), EntityId);
 				return;
