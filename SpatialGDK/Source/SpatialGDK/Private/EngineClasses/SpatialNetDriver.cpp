@@ -1076,6 +1076,14 @@ void USpatialNetDriver::TickFlush(float DeltaTime)
 	Super::TickFlush(DeltaTime);
 }
 
+FString USpatialNetDriver::GetDebugName() const
+{
+	TArray<FStringFormatArg> Arguments;
+	Arguments.Add(Connection->GetWorkerId());
+
+	return FString::Format(TEXT("NetDriver-{0}"), Arguments);
+}
+
 USpatialNetConnection * USpatialNetDriver::GetSpatialOSNetConnection() const
 {
 	if (ServerConnection)
