@@ -3,7 +3,6 @@
 #include "SpatialGDKEditorToolbar.h"
 #include "Async/Async.h"
 #include "Editor.h"
-#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISettingsContainer.h"
 #include "ISettingsModule.h"
@@ -20,6 +19,12 @@
 #include "Editor/EditorEngine.h"
 #include "HAL/FileManager.h"
 #include "Sound/SoundBase.h"
+
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Layout/SBox.h"
+#include "SpatialGDKBotDeployment.h"
 
 #include "AssetRegistryModule.h"
 #include "GeneralProjectSettings.h"
@@ -155,6 +160,11 @@ void FSpatialGDKEditorToolbarModule::MapActions(TSharedPtr<class FUICommandList>
 		FSpatialGDKEditorToolbarCommands::Get().LaunchInspectorWebPageAction,
 		FExecuteAction::CreateRaw(this, &FSpatialGDKEditorToolbarModule::LaunchInspectorWebpageButtonClicked),
 		FCanExecuteAction());
+
+	InPluginCommands->MapAction(
+		FSpatialGDKEditorToolbarCommands::Get().OpenBotConfigurationWindowAction,
+		FExecuteAction::CreateRaw(this, &FSpatialGDKEditorToolbarModule::ShowBotDeploymentDialog),
+		FCanExecuteAction());
 }
 
 void FSpatialGDKEditorToolbarModule::SetupToolbar(TSharedPtr<class FUICommandList> InPluginCommands)
@@ -191,6 +201,7 @@ void FSpatialGDKEditorToolbarModule::AddMenuExtension(FMenuBuilder& Builder)
 		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().StartSpatialOSStackAction);
 		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().StopSpatialOSStackAction);
 		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().LaunchInspectorWebPageAction);
+		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().OpenBotConfigurationWindowAction);
 	}
 	Builder.EndSection();
 }
@@ -203,6 +214,7 @@ void FSpatialGDKEditorToolbarModule::AddToolbarExtension(FToolBarBuilder& Builde
 	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().StartSpatialOSStackAction);
 	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().StopSpatialOSStackAction);
 	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().LaunchInspectorWebPageAction);
+	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().OpenBotConfigurationWindowAction);
 }
 
 void FSpatialGDKEditorToolbarModule::CreateSnapshotButtonClicked()
@@ -421,6 +433,38 @@ void FSpatialGDKEditorToolbarModule::OnPropertyChanged(UObject* ObjectBeingModif
 		{
 			bStopSpatialOnExit = Settings->bStopSpatialOnExit;
 		}
+	}
+}
+
+void FSpatialGDKEditorToolbarModule::ShowBotDeploymentDialog()
+{
+	// Create the window
+	BotDeploymentWindowPtr = SNew(SWindow)
+		.Title(LOCTEXT("BotConfigurationTitle", "Bot Deployment Configuration"))
+		.HasCloseButton(true)
+		.SupportsMaximize(false)
+		.SupportsMinimize(false)
+		.SizingRule(ESizingRule::Autosized);
+
+	BotDeploymentWindowPtr->SetContent(
+		SNew(SBox)
+		.WidthOverride(700.0f)
+		[
+			SAssignNew(BotDeploymentConfigPtr, SSpatialGDKBotDeployment)
+			.ParentWindow(BotDeploymentWindowPtr)
+		//.OnSourceControlLoginClosed(InOnSourceControlLoginClosed)
+		]
+	);
+
+	TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
+
+	if (RootWindow.IsValid())
+	{
+		FSlateApplication::Get().AddModalWindow(BotDeploymentWindowPtr.ToSharedRef(), RootWindow);
+	}
+	else
+	{
+		FSlateApplication::Get().AddModalWindow(BotDeploymentWindowPtr.ToSharedRef(), RootWindow);
 	}
 }
 

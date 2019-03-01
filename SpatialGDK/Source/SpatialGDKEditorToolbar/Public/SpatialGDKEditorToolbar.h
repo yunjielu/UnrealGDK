@@ -13,7 +13,9 @@ class FToolBarBuilder;
 class FMenuBuilder;
 class FUICommandList;
 class USoundBase;
+class SSpatialGDKBotDeployment;
 class FSpatialGDKEditor;
+class SWindow;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSpatialGDKEditorToolbar, Log, All);
 
@@ -54,6 +56,8 @@ private:
 	void SchemaGenerateButtonClicked();
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 
+	void ShowBotDeploymentDialog();
+
 private:
 	bool CanExecuteSchemaGenerator() const;
 	bool CanExecuteSnapshotGenerator() const;
@@ -84,4 +88,10 @@ private:
 
 	TFuture<bool> SchemaGeneratorResult;
 	TSharedPtr<FSpatialGDKEditor> SpatialGDKEditorInstance;
+
+	/** The login window we may be using */
+	TSharedPtr<SWindow> BotDeploymentWindowPtr;
+
+	/** The login window control we may be using */
+	TSharedPtr<class SSpatialGDKBotDeployment> BotDeploymentConfigPtr;
 };
