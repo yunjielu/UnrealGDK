@@ -16,6 +16,7 @@ public class SpatialGDKEditorToolbar : ModuleRules
             {
                 "Core",
                 "CoreUObject",
+                "DesktopPlatform",
                 "Engine",
                 "EngineSettings",
                 "InputCore",
