@@ -56,6 +56,9 @@ private:
 	/** Delegate called when the user wants to browse and select the default launch configuration */
 	FReply HandleBrowseLaunchConfigClicked();
 
+	/** Delegate called when the user wants to browse and select the snapshot file */
+	FReply HandleBrowseSnapshotClicked();
+
 	/** Delegate called when the user clicks the 'Launch Bot Deployment' button */
 	FReply OnLaunchClicked();
 

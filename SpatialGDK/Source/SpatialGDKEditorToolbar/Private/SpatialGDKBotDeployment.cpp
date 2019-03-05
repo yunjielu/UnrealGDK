@@ -55,6 +55,78 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnProjectNameCommited, ETextCommit::Default)
 								]
 							]
+							// Assembly Name 
+							+ SVerticalBox::Slot()
+							.FillHeight(2.0f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("Assembly Name"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the assembly file."))))
+								]
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(SEditableTextBox)
+									.Text(FText::FromString(FString(TEXT("Assembly Name"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the assembly."))))
+									.OnTextCommitted(this, &SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited)
+									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited, ETextCommit::Default)
+								]
+							]
+							// Deployment Name 
+							+ SVerticalBox::Slot()
+								.FillHeight(2.0f)
+								[
+									SNew(SHorizontalBox)
+									+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("Deployment Name"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
+								]
+							+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(SEditableTextBox)
+									.Text(FText::FromString(FString(TEXT("Deployment Name"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
+									.OnTextCommitted(this, &SSpatialGDKBotDeployment::OnDeploymentNameCommited)
+									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnDeploymentNameCommited, ETextCommit::Default)
+								]
+							]
+							// Snapshot File + File Picker
+							+ SVerticalBox::Slot()
+							.FillHeight(2.0f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("Snapshot File"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The relative path to the snapshot file."))))
+								]
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(SEditableTextBox)
+									.Text(FText::FromString(FString(TEXT("default.snapshot"))))
+									.ToolTipText(FText::FromString(FString(TEXT("Relative snapshot file path."))))
+								]
+								+ SHorizontalBox::Slot()
+								.FillWidth(0.5f)
+								[
+									SNew(SButton)
+									.HAlign(HAlign_Center)
+									.Text(FText::FromString(FString(TEXT("Browse..."))))
+									.OnClicked(this, &SSpatialGDKBotDeployment::HandleBrowseSnapshotClicked)
+								]
+							]
 							// Launch Config + File Picker
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
@@ -73,8 +145,6 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									SNew(SEditableTextBox)
 									.Text(FText::FromString(FString(TEXT("Launch Config"))))
 									.ToolTipText(FText::FromString(FString(TEXT("Launch Configuration File Path"))))
-									.OnTextCommitted(this, &SSpatialGDKBotDeployment::OnProjectNameCommited)
-									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnProjectNameCommited, ETextCommit::Default)
 								]
 								+ SHorizontalBox::Slot()
 								.FillWidth(0.5f)
@@ -85,6 +155,7 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.OnClicked(this, &SSpatialGDKBotDeployment::HandleBrowseLaunchConfigClicked)
 								]
 							]
+							// Launch Bot Deployment Button
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
 							.Padding(2.0f)
@@ -95,7 +166,7 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 								[
 									SNew(SButton)
 									.HAlign(HAlign_Center)
-									.Text(FText::FromString(FString(TEXT("Launch BotDeployment"))))
+									.Text(FText::FromString(FString(TEXT("Launch Bot Deployment"))))
 									.OnClicked(this, &SSpatialGDKBotDeployment::OnLaunchClicked)
 									.IsEnabled(this, &SSpatialGDKBotDeployment::IsBotDeploymentConfigurationValid)
 								]
@@ -119,7 +190,23 @@ FReply SSpatialGDKBotDeployment::HandleBrowseLaunchConfigClicked()
 	void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
 
 	TArray<FString> OutFiles;
-	if (FDesktopPlatformModule::Get()->OpenFileDialog(ParentWindowHandle, FString(TEXT("Choose a Default Configuration")), DefaultPath, TEXT(""), TEXT("Project files (*.uproject)|*.uproject"), EFileDialogFlags::None, OutFiles))
+	if (FDesktopPlatformModule::Get()->OpenFileDialog(ParentWindowHandle, FString(TEXT("Choose a Default Configuration")), DefaultPath, TEXT(""), TEXT("Project files (*.json)|*.json"), EFileDialogFlags::None, OutFiles))
+	{
+		SetDefaultLaunchConfigPath(OutFiles[0]);
+	}
+
+	return FReply::Handled();
+}
+
+FReply SSpatialGDKBotDeployment::HandleBrowseSnapshotClicked()
+{
+	FString DefaultPath = FPaths::RootDir();
+
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+	TArray<FString> OutFiles;
+	if (FDesktopPlatformModule::Get()->OpenFileDialog(ParentWindowHandle, FString(TEXT("Choose a Snapshot file")), DefaultPath, TEXT(""), TEXT("Project files (*.snapshot)|*.snapshot"), EFileDialogFlags::None, OutFiles))
 	{
 		SetDefaultLaunchConfigPath(OutFiles[0]);
 	}
