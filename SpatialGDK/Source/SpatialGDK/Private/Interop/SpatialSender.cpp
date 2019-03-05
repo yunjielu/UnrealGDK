@@ -551,6 +551,7 @@ void USpatialSender::SendDeleteEntityRequest(Worker_EntityId EntityId)
 	Connection->SendDeleteEntityRequest(EntityId);
 }
 
+#pragma optimize("", off)
 void USpatialSender::ResetOutgoingUpdate(USpatialActorChannel* DependentChannel, UObject* ReplicatedObject, int16 Handle, bool bIsHandover)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpatialSenderResetOutgoingUpdate);
@@ -586,7 +587,17 @@ void USpatialSender::ResetOutgoingUpdate(USpatialActorChannel* DependentChannel,
 	// Since these are not dereferenced before removing, it is safe to not check whether the unresolved object is still valid.
 	for (TWeakObjectPtr<const UObject>& UnresolvedObject : *Unresolved)
 	{
+		if (!ObjectToUnresolved.Contains(UnresolvedObject))
+		{
+			UE_LOG(LogTemp, Error, TEXT("ben: UNRESOLVED OBJECT could not be found."));
+			continue;
+		}
 		FChannelToHandleToUnresolved& ChannelToUnresolved = ObjectToUnresolved.FindChecked(UnresolvedObject);
+		if (!ChannelToUnresolved.Contains(ChannelObjectPair))
+		{
+			UE_LOG(LogTemp, Error, TEXT("ben: UNRESOVED CHANNEL could not be found."));
+			continue;
+		}
 		FHandleToUnresolved& OtherHandleToUnresolved = ChannelToUnresolved.FindChecked(ChannelObjectPair);
 
 		OtherHandleToUnresolved.Remove(Handle);
@@ -606,6 +617,7 @@ void USpatialSender::ResetOutgoingUpdate(USpatialActorChannel* DependentChannel,
 		PropertyToUnresolved.Remove(ChannelObjectPair);
 	}
 }
+#pragma optimize("", on)
 
 void USpatialSender::QueueOutgoingUpdate(USpatialActorChannel* DependentChannel, UObject* ReplicatedObject, int16 Handle, const TSet<TWeakObjectPtr<const UObject>>& UnresolvedObjects, bool bIsHandover)
 {
@@ -621,14 +633,20 @@ void USpatialSender::QueueOutgoingUpdate(USpatialActorChannel* DependentChannel,
 	FChannelToHandleToUnresolved& PropertyToUnresolved = bIsHandover ? HandoverPropertyToUnresolved : RepPropertyToUnresolved;
 	FOutgoingRepUpdates& ObjectToUnresolved = bIsHandover ? HandoverObjectToUnresolved : RepObjectToUnresolved;
 
+	if (FHandleToUnresolved* HandleToUnresolved = PropertyToUnresolved.Find(ChannelObjectPair))
+	{
+		if (FUnresolvedEntry* UnresolvedPtr = HandleToUnresolved->Find(Handle))
+		{
+			UE_LOG(LogSpatialSender, Warning, TEXT("Outgoing update handle found for %s, handle %d!"), *ReplicatedObject->GetName(), Handle);
+			ResetOutgoingUpdate(DependentChannel, ReplicatedObject, Handle, bIsHandover);
+		}
+	}
+
 	FUnresolvedEntry Unresolved = MakeShared<TSet<TWeakObjectPtr<const UObject>>>();
 	*Unresolved = UnresolvedObjects;
 
 	FHandleToUnresolved& HandleToUnresolved = PropertyToUnresolved.FindOrAdd(ChannelObjectPair);
-	if (HandleToUnresolved.Find(Handle))
-	{
-		HandleToUnresolved.Remove(Handle);
-	}
+	check(!HandleToUnresolved.Find(Handle));
 	HandleToUnresolved.Add(Handle, Unresolved);
 
 	for (const TWeakObjectPtr<const UObject>& UnresolvedObject : UnresolvedObjects)
