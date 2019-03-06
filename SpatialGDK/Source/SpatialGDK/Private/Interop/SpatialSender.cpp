@@ -587,14 +587,20 @@ void USpatialSender::QueueOutgoingUpdate(USpatialActorChannel* DependentChannel,
 	FChannelToHandleToUnresolved& PropertyToUnresolved = bIsHandover ? HandoverPropertyToUnresolved : RepPropertyToUnresolved;
 	FOutgoingRepUpdates& ObjectToUnresolved = bIsHandover ? HandoverObjectToUnresolved : RepObjectToUnresolved;
 
+	if (FHandleToUnresolved* HandleToUnresolved = PropertyToUnresolved.Find(ChannelObjectPair))
+	{
+		if (FUnresolvedEntry* UnresolvedPtr = HandleToUnresolved->Find(Handle))
+		{
+			UE_LOG(LogSpatialSender, Warning, TEXT("Outgoing update handle found for %s, handle %d!"), *ReplicatedObject->GetName(), Handle);
+			ResetOutgoingUpdate(DependentChannel, ReplicatedObject, Handle, bIsHandover);
+		}
+	}
+
 	FUnresolvedEntry Unresolved = MakeShared<TSet<TWeakObjectPtr<const UObject>>>();
 	*Unresolved = UnresolvedObjects;
 
 	FHandleToUnresolved& HandleToUnresolved = PropertyToUnresolved.FindOrAdd(ChannelObjectPair);
-	if (HandleToUnresolved.Find(Handle))
-	{
-		HandleToUnresolved.Remove(Handle);
-	}
+	check(!HandleToUnresolved.Contains(Handle));
 	HandleToUnresolved.Add(Handle, Unresolved);
 
 	for (const TWeakObjectPtr<const UObject>& UnresolvedObject : UnresolvedObjects)
