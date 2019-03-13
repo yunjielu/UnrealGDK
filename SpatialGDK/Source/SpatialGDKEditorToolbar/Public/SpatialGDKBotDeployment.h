@@ -29,17 +29,39 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
+
+	FString DeploymentName;
+
+	FString AssemblyName;
+
+	FString ProjectName;
+
+	bool DeploymentNameIsValid;
+
+	bool AssemblyNameIsValid;
+
+	bool ProjectNameIsValid;
+
 	/** The parent window of this widget */
 	TWeakPtr<SWindow> ParentWindowPtr;
 
 	/** Delegate to commit assembly name */
-	void OnDeploymentAssemblyCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnDeploymentAssemblyCommited(const FText& InText, ETextCommit::Type InCommitType);
+
+	void SetAssemblyName(const FString & Name);
 
 	/** Delegate to commit project name */
-	void OnProjectNameCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnProjectNameCommited(const FText& InText, ETextCommit::Type InCommitType);
+
+	void SetProjectName(const FString & Name);
 
 	/** Delegate to commit deployment name */
-	void OnDeploymentNameCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnDeploymentNameCommited(const FText& InText, ETextCommit::Type InCommitType);
+
+	void SetDeploymentName(const FString & Name);
+
+	/** Delegate to commit the number of Simulated Players */
+	void OnNumberOfSimulatedPlayersCommited(uint32 NewValue) const;
 
 	/** Sets the path to the snapshot file for the deployment */
 	void SetSnapshotPath(FString SnapshotPath);
@@ -67,4 +89,19 @@ private:
 
 	/** Delegate called when the user clicks the 'Stop Deployment' button */
 	FReply OnStopClicked();
+
+	void ValidateAssemblyName();
+
+	void ValidateProjectName();
+
+	void ValidateDeploymentName();
+
+	/** Indicates if the assembly name is valid based on its last check */
+	bool IsAssemblyNameValid() const;
+
+	/** Indicates if the project name is valid based on its last check */
+	bool IsProjectNameValid() const;
+
+	/** Indicates if the deployment name is valid based on its last check */
+	bool IsDeploymentNameValid() const;
 };

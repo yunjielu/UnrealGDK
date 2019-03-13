@@ -5,7 +5,10 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Text/STextBlock.h"
+
+#include "Internationalization/Regex.h"
 
 void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 {
@@ -155,6 +158,29 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.OnClicked(this, &SSpatialGDKBotDeployment::HandleBrowseLaunchConfigClicked)
 								]
 							]
+							// Deployment Name 
+							+ SVerticalBox::Slot()
+							.FillHeight(2.0f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("Number of Simulated Players"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The number of Simulated Players to be launched and connect to the game."))))
+								]
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(SSpinBox<uint32>)
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
+									.MinValue(1)
+									.MaxValue(8192)
+									.Value(0)
+									.OnValueChanged(this, &SSpatialGDKBotDeployment::OnNumberOfSimulatedPlayersCommited)
+								]
+							]
 							// Launch Bot Deployment Button
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
@@ -224,19 +250,42 @@ void SSpatialGDKBotDeployment::SetBotLaunchConfigPath(FString BotLaunchConfigPat
 	// TODO: Save the path somewhere
 }
 
-void SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited(const FText & InText, ETextCommit::Type InCommitType) const
+void SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
-	// TODO: Save the assembly
+	SetAssemblyName(InText.ToString());
+	ValidateAssemblyName();
 }
 
-void SSpatialGDKBotDeployment::OnProjectNameCommited(const FText & InText, ETextCommit::Type InCommitType) const
+void SSpatialGDKBotDeployment::SetAssemblyName(const FString & Name)
 {
-	// TODO: Save this InText.ToString() to somewhere
+	AssemblyName = Name;
 }
 
-void SSpatialGDKBotDeployment::OnDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType) const
+void SSpatialGDKBotDeployment::OnProjectNameCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
-	// TODO: Save the deployment name
+	SetProjectName(InText.ToString());
+	ValidateProjectName();
+}
+
+void SSpatialGDKBotDeployment::SetProjectName(const FString & Name)
+{
+	ProjectName = Name;
+}
+
+void SSpatialGDKBotDeployment::OnDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
+{
+	 SetDeploymentName(InText.ToString());
+	 ValidateDeploymentName();
+}
+
+void SSpatialGDKBotDeployment::SetDeploymentName(const FString & Name)
+{
+	DeploymentName = Name;
+}
+
+void SSpatialGDKBotDeployment::OnNumberOfSimulatedPlayersCommited(uint32 NewValue) const
+{
+	// TODO: Save the number of simulated players
 }
 
 void SSpatialGDKBotDeployment::SetSnapshotPath(FString SnapshotPath)
@@ -262,7 +311,49 @@ FReply SSpatialGDKBotDeployment::OnStopClicked()
 	return FReply::Handled();
 }
 
+void SSpatialGDKBotDeployment::ValidateAssemblyName()
+{
+	const FRegexPattern AssemblyPattern(TEXT("^[a-zA-Z0-9_.-]{5,64}$"));
+	FRegexMatcher RegMatcher(AssemblyPattern, AssemblyName);
+
+	AssemblyNameIsValid = RegMatcher.FindNext();
+}
+
+void SSpatialGDKBotDeployment::ValidateProjectName()
+{
+	const FRegexPattern ProjectPattern(TEXT("^[a-z0-9_]{3,32}$"));
+	FRegexMatcher RegMatcher(ProjectPattern, ProjectName);
+
+	ProjectNameIsValid = RegMatcher.FindNext();
+}
+
+void SSpatialGDKBotDeployment::ValidateDeploymentName()
+{
+	const FRegexPattern DeploymentPattern(TEXT("^[a-z0-9_]{2,32}$"));
+	FRegexMatcher RegMatcher(DeploymentPattern, DeploymentName);
+
+	DeploymentNameIsValid = RegMatcher.FindNext();
+}
+
+bool SSpatialGDKBotDeployment::IsAssemblyNameValid() const
+{
+	return AssemblyNameIsValid;
+}
+
+bool SSpatialGDKBotDeployment::IsProjectNameValid() const
+{
+	return ProjectNameIsValid;
+}
+
+bool SSpatialGDKBotDeployment::IsDeploymentNameValid() const
+{
+	return DeploymentNameIsValid;
+}
+
 bool SSpatialGDKBotDeployment::IsBotDeploymentConfigurationValid() const
 {
-	return false;
+	return
+		IsDeploymentNameValid() &&
+		IsAssemblyNameValid() &&
+		IsProjectNameValid();
 }
