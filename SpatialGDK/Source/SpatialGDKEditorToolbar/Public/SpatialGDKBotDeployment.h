@@ -36,11 +36,19 @@ private:
 
 	FString ProjectName;
 
+	FString PrimaryLaunchConfigPath;
+
+	FString SnapshotPath;
+
+	FString BotLaunchConfigPath;
+
 	bool DeploymentNameIsValid;
 
 	bool AssemblyNameIsValid;
 
 	bool ProjectNameIsValid;
+
+	uint32 NumOfSimulatedPlayers;
 
 	/** The parent window of this widget */
 	TWeakPtr<SWindow> ParentWindowPtr;
@@ -50,36 +58,52 @@ private:
 
 	void SetAssemblyName(const FString & Name);
 
+	FText GetAssemblyName() const;
+
 	/** Delegate to commit project name */
 	void OnProjectNameCommited(const FText& InText, ETextCommit::Type InCommitType);
 
 	void SetProjectName(const FString & Name);
+
+	FText GetProjectName() const;
 
 	/** Delegate to commit deployment name */
 	void OnDeploymentNameCommited(const FText& InText, ETextCommit::Type InCommitType);
 
 	void SetDeploymentName(const FString & Name);
 
-	/** Delegate to commit the number of Simulated Players */
-	void OnNumberOfSimulatedPlayersCommited(uint32 NewValue) const;
+	FText GetDeploymentName() const;
 
-	/** Sets the path to the snapshot file for the deployment */
-	void SetSnapshotPath(FString SnapshotPath);
+	/** Delegate called when the user has picked a path for the snapshot file */
+	void OnSnapshotPathPicked(const FString & PickedPath);
+
+	/** Sets the path to the snapshot file for the primary deployment */
+	void SetSnapshotPath(const FString & Path);
+
+	FString GetSnapshotPath() const;
+
+	/** Delegate called when the user has picked a path for the primary launch configuration file */
+	void OnPrimaryLaunchConfigPathPicked(const FString & PickedPath);
 
 	/** Sets the path to the launch configuration file for the cloud deployment */
-	void SetDefaultLaunchConfigPath(FString LaunchConfigPath);
+	void SetPrimaryLaunchConfigPath(const FString & Path);
+
+	FString GetPrimaryLaunchConfigPath() const;
+
+	/** Delegate to commit the number of Simulated Players */
+	void OnNumberOfSimulatedPlayersCommited(uint32 NewValue);
+
+	void SetNumberOfSimulatedPlayers(uint32 NumberOfPlayers);
+
+	uint32 GetNumberOfSimulatedPlayers() const;
+
+	/** Delegate called when the user has picked a path for the bot launch configuration file */
+	void OnBotLaunchConfigPathPicked(const FString & PickedPath);
 
 	/** Sets the path to the launch configuration file for the bot deployment */
-	void SetBotLaunchConfigPath(FString BotLaunchConfigPath);
+	void SetBotLaunchConfigPath(const FString & BotLaunchConfigPath);
 
-	/** Delegate to determine the 'Launch Bot Deployment' button enabled state */
-	bool IsBotDeploymentConfigurationValid() const;
-
-	/** Delegate called when the user wants to browse and select the default launch configuration */
-	FReply HandleBrowseLaunchConfigClicked();
-
-	/** Delegate called when the user wants to browse and select the snapshot file */
-	FReply HandleBrowseSnapshotClicked();
+	FString GetBotLaunchConfigPath() const;
 
 	/** Delegate called when the user clicks the 'Launch Bot Deployment' button */
 	FReply OnLaunchClicked();
@@ -104,4 +128,7 @@ private:
 
 	/** Indicates if the deployment name is valid based on its last check */
 	bool IsDeploymentNameValid() const;
+
+	/** Delegate to determine the 'Launch Bot Deployment' button enabled state */
+	bool IsBotDeploymentConfigurationValid() const;
 };
