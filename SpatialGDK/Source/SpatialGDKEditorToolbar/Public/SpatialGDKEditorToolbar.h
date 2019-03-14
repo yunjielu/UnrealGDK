@@ -13,7 +13,7 @@ class FToolBarBuilder;
 class FMenuBuilder;
 class FUICommandList;
 class USoundBase;
-class SSpatialGDKBotDeployment;
+class SSpatialGDKSimulatedPlayerDeployment;
 class FSpatialGDKEditor;
 class SWindow;
 
@@ -56,7 +56,7 @@ private:
 	void SchemaGenerateButtonClicked();
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 
-	void ShowBotDeploymentDialog();
+	void ShowSimulatedPlayerDeploymentDialog();
 
 private:
 	bool CanExecuteSchemaGenerator() const;
@@ -90,8 +90,8 @@ private:
 	TSharedPtr<FSpatialGDKEditor> SpatialGDKEditorInstance;
 
 	/** The login window we may be using */
-	TSharedPtr<SWindow> BotDeploymentWindowPtr;
+	TSharedPtr<SWindow> SimulatedPlayerDeploymentWindowPtr;
 
 	/** The login window control we may be using */
-	TSharedPtr<class SSpatialGDKBotDeployment> BotDeploymentConfigPtr;
+	TSharedPtr<class SSpatialGDKSimulatedPlayerDeployment> SimulatedPlayerDeploymentConfigPtr;
 };

@@ -10,11 +10,11 @@
 
 class SWindow;
 
-class SSpatialGDKBotDeployment : public SCompoundWidget
+class SSpatialGDKSimulatedPlayerDeployment : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SSpatialGDKBotDeployment) {}
+	SLATE_BEGIN_ARGS(SSpatialGDKSimulatedPlayerDeployment) {}
 
 	/** A reference to the parent window */
 	SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
@@ -40,7 +40,7 @@ private:
 
 	FString SnapshotPath;
 
-	FString BotLaunchConfigPath;
+	FString SimulatedPlayerLaunchConfigPath;
 
 	bool DeploymentNameIsValid;
 
@@ -97,15 +97,15 @@ private:
 
 	uint32 GetNumberOfSimulatedPlayers() const;
 
-	/** Delegate called when the user has picked a path for the bot launch configuration file */
-	void OnBotLaunchConfigPathPicked(const FString & PickedPath);
+	/** Delegate called when the user has picked a path for the simulated player launch configuration file */
+	void OnSimulatedPlayerLaunchConfigPathPicked(const FString & PickedPath);
 
-	/** Sets the path to the launch configuration file for the bot deployment */
-	void SetBotLaunchConfigPath(const FString & BotLaunchConfigPath);
+	/** Sets the path to the launch configuration file for the simulated player deployment */
+	void SetSimulatedPlayerLaunchConfigPath(const FString & SimulatedPlayerLaunchConfigPath);
 
-	FString GetBotLaunchConfigPath() const;
+	FString GetSimulatedPlayerLaunchConfigPath() const;
 
-	/** Delegate called when the user clicks the 'Launch Bot Deployment' button */
+	/** Delegate called when the user clicks the 'Launch Simulated Player Deployment' button */
 	FReply OnLaunchClicked();
 
 	/** Delegate called when the user clicks the 'Refresh' button */
@@ -129,6 +129,6 @@ private:
 	/** Indicates if the deployment name is valid based on its last check */
 	bool IsDeploymentNameValid() const;
 
-	/** Delegate to determine the 'Launch Bot Deployment' button enabled state */
-	bool IsBotDeploymentConfigurationValid() const;
+	/** Delegate to determine the 'Launch Simulated Player Deployment' button enabled state */
+	bool IsDeploymentConfigurationValid() const;
 };

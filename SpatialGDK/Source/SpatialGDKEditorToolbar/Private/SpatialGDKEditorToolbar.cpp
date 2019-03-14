@@ -24,7 +24,7 @@
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
-#include "SpatialGDKBotDeployment.h"
+#include "SpatialGDKSimulatedPlayerDeployment.h"
 
 #include "AssetRegistryModule.h"
 #include "GeneralProjectSettings.h"
@@ -162,8 +162,8 @@ void FSpatialGDKEditorToolbarModule::MapActions(TSharedPtr<class FUICommandList>
 		FCanExecuteAction());
 
 	InPluginCommands->MapAction(
-		FSpatialGDKEditorToolbarCommands::Get().OpenBotConfigurationWindowAction,
-		FExecuteAction::CreateRaw(this, &FSpatialGDKEditorToolbarModule::ShowBotDeploymentDialog),
+		FSpatialGDKEditorToolbarCommands::Get().OpenSimulatedPlayerConfigurationWindowAction,
+		FExecuteAction::CreateRaw(this, &FSpatialGDKEditorToolbarModule::ShowSimulatedPlayerDeploymentDialog),
 		FCanExecuteAction());
 }
 
@@ -201,7 +201,7 @@ void FSpatialGDKEditorToolbarModule::AddMenuExtension(FMenuBuilder& Builder)
 		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().StartSpatialOSStackAction);
 		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().StopSpatialOSStackAction);
 		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().LaunchInspectorWebPageAction);
-		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().OpenBotConfigurationWindowAction);
+		Builder.AddMenuEntry(FSpatialGDKEditorToolbarCommands::Get().OpenSimulatedPlayerConfigurationWindowAction);
 	}
 	Builder.EndSection();
 }
@@ -214,7 +214,7 @@ void FSpatialGDKEditorToolbarModule::AddToolbarExtension(FToolBarBuilder& Builde
 	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().StartSpatialOSStackAction);
 	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().StopSpatialOSStackAction);
 	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().LaunchInspectorWebPageAction);
-	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().OpenBotConfigurationWindowAction);
+	Builder.AddToolBarButton(FSpatialGDKEditorToolbarCommands::Get().OpenSimulatedPlayerConfigurationWindowAction);
 }
 
 void FSpatialGDKEditorToolbarModule::CreateSnapshotButtonClicked()
@@ -436,22 +436,22 @@ void FSpatialGDKEditorToolbarModule::OnPropertyChanged(UObject* ObjectBeingModif
 	}
 }
 
-void FSpatialGDKEditorToolbarModule::ShowBotDeploymentDialog()
+void FSpatialGDKEditorToolbarModule::ShowSimulatedPlayerDeploymentDialog()
 {
 	// Create the window
-	BotDeploymentWindowPtr = SNew(SWindow)
-		.Title(LOCTEXT("BotConfigurationTitle", "Bot Deployment Configuration"))
+	SimulatedPlayerDeploymentWindowPtr = SNew(SWindow)
+		.Title(LOCTEXT("SimulatedPlayerConfigurationTitle", "Simulated Player Deployment Configuration"))
 		.HasCloseButton(true)
 		.SupportsMaximize(false)
 		.SupportsMinimize(false)
 		.SizingRule(ESizingRule::Autosized);
 
-	BotDeploymentWindowPtr->SetContent(
+	SimulatedPlayerDeploymentWindowPtr->SetContent(
 		SNew(SBox)
 		.WidthOverride(700.0f)
 		[
-			SAssignNew(BotDeploymentConfigPtr, SSpatialGDKBotDeployment)
-			.ParentWindow(BotDeploymentWindowPtr)
+			SAssignNew(SimulatedPlayerDeploymentConfigPtr, SSpatialGDKSimulatedPlayerDeployment)
+			.ParentWindow(SimulatedPlayerDeploymentWindowPtr)
 		//.OnSourceControlLoginClosed(InOnSourceControlLoginClosed)
 		]
 	);
@@ -460,11 +460,11 @@ void FSpatialGDKEditorToolbarModule::ShowBotDeploymentDialog()
 
 	if (RootWindow.IsValid())
 	{
-		FSlateApplication::Get().AddModalWindow(BotDeploymentWindowPtr.ToSharedRef(), RootWindow);
+		FSlateApplication::Get().AddModalWindow(SimulatedPlayerDeploymentWindowPtr.ToSharedRef(), RootWindow);
 	}
 	else
 	{
-		FSlateApplication::Get().AddModalWindow(BotDeploymentWindowPtr.ToSharedRef(), RootWindow);
+		FSlateApplication::Get().AddModalWindow(SimulatedPlayerDeploymentWindowPtr.ToSharedRef(), RootWindow);
 	}
 }
 

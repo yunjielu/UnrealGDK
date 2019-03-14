@@ -1,4 +1,4 @@
-#include "SpatialGDKBotDeployment.h"
+#include "SpatialGDKSimulatedPlayerDeployment.h"
 #include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
@@ -12,7 +12,7 @@
 
 #include "Internationalization/Regex.h"
 
-void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
+void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 {
 	ParentWindowPtr = InArgs._ParentWindow;
 
@@ -54,10 +54,10 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKBotDeployment::GetProjectName)
+									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetProjectName)
 									.ToolTipText(FText::FromString(FString(TEXT("Project Name"))))
-									.OnTextCommitted(this, &SSpatialGDKBotDeployment::OnProjectNameCommited)
-									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnProjectNameCommited, ETextCommit::Default)
+									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnProjectNameCommited)
+									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnProjectNameCommited, ETextCommit::Default)
 								]
 							]
 							// Assembly Name 
@@ -76,10 +76,10 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKBotDeployment::GetAssemblyName)
+									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName)
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the assembly."))))
-									.OnTextCommitted(this, &SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited)
-									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited, ETextCommit::Default)
+									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentAssemblyCommited)
+									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentAssemblyCommited, ETextCommit::Default)
 								]
 							]
 							// Deployment Name 
@@ -98,10 +98,10 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKBotDeployment::GetDeploymentName)
+									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetDeploymentName)
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
-									.OnTextCommitted(this, &SSpatialGDKBotDeployment::OnDeploymentNameCommited)
-									.OnTextChanged(this, &SSpatialGDKBotDeployment::OnDeploymentNameCommited, ETextCommit::Default)
+									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentNameCommited)
+									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentNameCommited, ETextCommit::Default)
 								]
 							]
 							// Snapshot File + File Picker
@@ -125,9 +125,9 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the snapshot file"))))
 									.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
-									.FilePath(this, &SSpatialGDKBotDeployment::GetSnapshotPath)
+									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath)
 									.FileTypeFilter(TEXT("Snapshot files (*.snapshot)|*.snapshot"))
-									.OnPathPicked(this, &SSpatialGDKBotDeployment::OnSnapshotPathPicked)
+									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnSnapshotPathPicked)
 								]
 							]
 							// Primary Launch Config + File Picker
@@ -151,9 +151,9 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the primary launch configuration"))))
 									.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
-									.FilePath(this, &SSpatialGDKBotDeployment::GetPrimaryLaunchConfigPath)
+									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath)
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
-									.OnPathPicked(this, &SSpatialGDKBotDeployment::OnPrimaryLaunchConfigPathPicked)
+									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryLaunchConfigPathPicked)
 								]
 							]
 							// Simulated Players Number 
@@ -176,7 +176,7 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.MinValue(1)
 									.MaxValue(8192)
 									.Value(0)
-									.OnValueChanged(this, &SSpatialGDKBotDeployment::OnNumberOfSimulatedPlayersCommited)
+									.OnValueChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnNumberOfSimulatedPlayersCommited)
 								]
 							]
 							// Simulated Player Launch Config + File Picker
@@ -200,12 +200,12 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the simulated player launch configuration"))))
 									.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
-									.FilePath(this, &SSpatialGDKBotDeployment::GetBotLaunchConfigPath)
+									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath)
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
-									.OnPathPicked(this, &SSpatialGDKBotDeployment::OnBotLaunchConfigPathPicked)
+									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerLaunchConfigPathPicked)
 								]
 							]
-							// Launch Bot Deployment Button
+							// Launch Simulated Players Deployment Button
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
 							.Padding(2.0f)
@@ -216,9 +216,9 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 								[
 									SNew(SButton)
 									.HAlign(HAlign_Center)
-									.Text(FText::FromString(FString(TEXT("Launch Bot Deployment"))))
-									.OnClicked(this, &SSpatialGDKBotDeployment::OnLaunchClicked)
-									.IsEnabled(this, &SSpatialGDKBotDeployment::IsBotDeploymentConfigurationValid)
+									.Text(FText::FromString(FString(TEXT("Launch Simulated Players Deployment"))))
+									.OnClicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnLaunchClicked)
+									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsDeploymentConfigurationValid)
 								]
 							]
 						]
@@ -231,128 +231,128 @@ void SSpatialGDKBotDeployment::Construct(const FArguments& InArgs)
 		];
 }
 
-void SSpatialGDKBotDeployment::OnDeploymentAssemblyCommited(const FText & InText, ETextCommit::Type InCommitType)
+void SSpatialGDKSimulatedPlayerDeployment::OnDeploymentAssemblyCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
 	SetAssemblyName(InText.ToString());
 	ValidateAssemblyName();
 }
 
-void SSpatialGDKBotDeployment::SetAssemblyName(const FString & Name)
+void SSpatialGDKSimulatedPlayerDeployment::SetAssemblyName(const FString & Name)
 {
 	AssemblyName = Name;
 }
 
-FText SSpatialGDKBotDeployment::GetAssemblyName() const
+FText SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName() const
 {
 	return FText::FromString(AssemblyName);
 }
 
-void SSpatialGDKBotDeployment::OnProjectNameCommited(const FText & InText, ETextCommit::Type InCommitType)
+void SSpatialGDKSimulatedPlayerDeployment::OnProjectNameCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
 	SetProjectName(InText.ToString());
 	ValidateProjectName();
 }
 
-void SSpatialGDKBotDeployment::SetProjectName(const FString & Name)
+void SSpatialGDKSimulatedPlayerDeployment::SetProjectName(const FString & Name)
 {
 	ProjectName = Name;
 }
 
-FText SSpatialGDKBotDeployment::GetProjectName() const
+FText SSpatialGDKSimulatedPlayerDeployment::GetProjectName() const
 {
 	return FText::FromString(ProjectName);
 }
 
-void SSpatialGDKBotDeployment::OnDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
+void SSpatialGDKSimulatedPlayerDeployment::OnDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
 	 SetDeploymentName(InText.ToString());
 	 ValidateDeploymentName();
 }
 
-void SSpatialGDKBotDeployment::SetDeploymentName(const FString & Name)
+void SSpatialGDKSimulatedPlayerDeployment::SetDeploymentName(const FString & Name)
 {
 	DeploymentName = Name;
 }
 
-FText SSpatialGDKBotDeployment::GetDeploymentName() const
+FText SSpatialGDKSimulatedPlayerDeployment::GetDeploymentName() const
 {
 	return FText::FromString(DeploymentName);
 }
 
-void SSpatialGDKBotDeployment::OnSnapshotPathPicked(const FString & PickedPath)
+void SSpatialGDKSimulatedPlayerDeployment::OnSnapshotPathPicked(const FString & PickedPath)
 {
-	SSpatialGDKBotDeployment::SetSnapshotPath(PickedPath);
+	SSpatialGDKSimulatedPlayerDeployment::SetSnapshotPath(PickedPath);
 }
 
-void SSpatialGDKBotDeployment::SetSnapshotPath(const FString & Path)
+void SSpatialGDKSimulatedPlayerDeployment::SetSnapshotPath(const FString & Path)
 {
 	SnapshotPath = Path;
 }
 
-FString SSpatialGDKBotDeployment::GetSnapshotPath() const
+FString SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath() const
 {
 	return SnapshotPath;
 }
 
-void SSpatialGDKBotDeployment::OnPrimaryLaunchConfigPathPicked(const FString& PickedPath)
+void SSpatialGDKSimulatedPlayerDeployment::OnPrimaryLaunchConfigPathPicked(const FString& PickedPath)
 {
-	SSpatialGDKBotDeployment::SetPrimaryLaunchConfigPath(PickedPath);
+	SSpatialGDKSimulatedPlayerDeployment::SetPrimaryLaunchConfigPath(PickedPath);
 }
 
-void SSpatialGDKBotDeployment::SetPrimaryLaunchConfigPath(const FString & Path)
+void SSpatialGDKSimulatedPlayerDeployment::SetPrimaryLaunchConfigPath(const FString & Path)
 {
 	PrimaryLaunchConfigPath = Path;
 }
 
-FString SSpatialGDKBotDeployment::GetPrimaryLaunchConfigPath() const
+FString SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath() const
 {
 	return PrimaryLaunchConfigPath;
 }
 
-void SSpatialGDKBotDeployment::OnNumberOfSimulatedPlayersCommited(uint32 NewValue)
+void SSpatialGDKSimulatedPlayerDeployment::OnNumberOfSimulatedPlayersCommited(uint32 NewValue)
 {
-	SSpatialGDKBotDeployment::SetNumberOfSimulatedPlayers(NewValue);
+	SSpatialGDKSimulatedPlayerDeployment::SetNumberOfSimulatedPlayers(NewValue);
 }
 
-void SSpatialGDKBotDeployment::SetNumberOfSimulatedPlayers(uint32 NumberOfPlayers)
+void SSpatialGDKSimulatedPlayerDeployment::SetNumberOfSimulatedPlayers(uint32 NumberOfPlayers)
 {
 	NumOfSimulatedPlayers = NumberOfPlayers;
 }
 
-void SSpatialGDKBotDeployment::OnBotLaunchConfigPathPicked(const FString & PickedPath)
+void SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerLaunchConfigPathPicked(const FString & PickedPath)
 {
-	SSpatialGDKBotDeployment::SetBotLaunchConfigPath(PickedPath);
+	SSpatialGDKSimulatedPlayerDeployment::SetSimulatedPlayerLaunchConfigPath(PickedPath);
 }
 
-void SSpatialGDKBotDeployment::SetBotLaunchConfigPath(const FString & Path)
+void SSpatialGDKSimulatedPlayerDeployment::SetSimulatedPlayerLaunchConfigPath(const FString & Path)
 {
-	BotLaunchConfigPath = Path;
+	SimulatedPlayerLaunchConfigPath = Path;
 }
 
-FString SSpatialGDKBotDeployment::GetBotLaunchConfigPath() const
+FString SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath() const
 {
-	return BotLaunchConfigPath;
+	return SimulatedPlayerLaunchConfigPath;
 }
 
-FReply SSpatialGDKBotDeployment::OnLaunchClicked()
+FReply SSpatialGDKSimulatedPlayerDeployment::OnLaunchClicked()
 {
-	// TODO: Launch Bot Deployment :)
+	// TODO: Launch Simulated Player Deployment :)
 	return FReply::Handled();
 }
 
-FReply SSpatialGDKBotDeployment::OnRefreshClicked()
+FReply SSpatialGDKSimulatedPlayerDeployment::OnRefreshClicked()
 {
 	// TODO: Invoke Platform SDK to refresh the deployment list
 	return FReply::Handled();
 }
 
-FReply SSpatialGDKBotDeployment::OnStopClicked()
+FReply SSpatialGDKSimulatedPlayerDeployment::OnStopClicked()
 {
 	// TODO: Invoke the Platform SDK to stop the deployments
 	return FReply::Handled();
 }
 
-void SSpatialGDKBotDeployment::ValidateAssemblyName()
+void SSpatialGDKSimulatedPlayerDeployment::ValidateAssemblyName()
 {
 	const FRegexPattern AssemblyPattern(TEXT("^[a-zA-Z0-9_.-]{5,64}$"));
 	FRegexMatcher RegMatcher(AssemblyPattern, AssemblyName);
@@ -360,7 +360,7 @@ void SSpatialGDKBotDeployment::ValidateAssemblyName()
 	AssemblyNameIsValid = RegMatcher.FindNext();
 }
 
-void SSpatialGDKBotDeployment::ValidateProjectName()
+void SSpatialGDKSimulatedPlayerDeployment::ValidateProjectName()
 {
 	const FRegexPattern ProjectPattern(TEXT("^[a-z0-9_]{3,32}$"));
 	FRegexMatcher RegMatcher(ProjectPattern, ProjectName);
@@ -368,7 +368,7 @@ void SSpatialGDKBotDeployment::ValidateProjectName()
 	ProjectNameIsValid = RegMatcher.FindNext();
 }
 
-void SSpatialGDKBotDeployment::ValidateDeploymentName()
+void SSpatialGDKSimulatedPlayerDeployment::ValidateDeploymentName()
 {
 	const FRegexPattern DeploymentPattern(TEXT("^[a-z0-9_]{2,32}$"));
 	FRegexMatcher RegMatcher(DeploymentPattern, DeploymentName);
@@ -376,22 +376,22 @@ void SSpatialGDKBotDeployment::ValidateDeploymentName()
 	DeploymentNameIsValid = RegMatcher.FindNext();
 }
 
-bool SSpatialGDKBotDeployment::IsAssemblyNameValid() const
+bool SSpatialGDKSimulatedPlayerDeployment::IsAssemblyNameValid() const
 {
 	return AssemblyNameIsValid;
 }
 
-bool SSpatialGDKBotDeployment::IsProjectNameValid() const
+bool SSpatialGDKSimulatedPlayerDeployment::IsProjectNameValid() const
 {
 	return ProjectNameIsValid;
 }
 
-bool SSpatialGDKBotDeployment::IsDeploymentNameValid() const
+bool SSpatialGDKSimulatedPlayerDeployment::IsDeploymentNameValid() const
 {
 	return DeploymentNameIsValid;
 }
 
-bool SSpatialGDKBotDeployment::IsBotDeploymentConfigurationValid() const
+bool SSpatialGDKSimulatedPlayerDeployment::IsDeploymentConfigurationValid() const
 {
 	return
 		IsAssemblyNameValid() &&
