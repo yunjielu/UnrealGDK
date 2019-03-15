@@ -2,18 +2,27 @@
 #include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SFilePathPicker.h"
+#include "Widgets/Input/SHyperlink.h"
+#include "SpatialGDKEditorSettings.h"
 #include "EditorDirectories.h"
 
 #include "Internationalization/Regex.h"
 
 void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 {
+	const USpatialGDKEditorSettings* SpatialGDKSettings = GetDefault<USpatialGDKEditorSettings>();
+
+	AssemblyName = "UnrealAssembly";
+
 	ParentWindowPtr = InArgs._ParentWindow;
 
 	ChildSlot
@@ -35,12 +44,43 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
 						.AutoHeight()
-						.Padding(0.0f)
+						.Padding(1.0f)
 						[
-							// Project 
 							SNew(SVerticalBox)
+							// Build explanation set
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.HAlign(HAlign_Center)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("NOTE: The assembly has to be built and uploaded manually. Follow the docs "))))
+								]
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SHyperlink)
+									.Text(FText::FromString(FString(TEXT("here."))))
+									.OnNavigate(this, &SSpatialGDKSimulatedPlayerDeployment::OnCloudDocumentationClicked)
+								]
+							]
+							// Separator
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(2.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SSeparator)
+							]
+							// Project 
+							+ SVerticalBox::Slot()
+							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -63,6 +103,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 							// Assembly Name 
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -82,9 +123,10 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentAssemblyCommited, ETextCommit::Default)
 								]
 							]
-							// Deployment Name 
+							// Pirmary Deployment Name 
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -98,15 +140,16 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetDeploymentName)
+									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetPrimaryDeploymentName)
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
-									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentNameCommited)
-									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentNameCommited, ETextCommit::Default)
+									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryDeploymentNameCommited)
+									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryDeploymentNameCommited, ETextCommit::Default)
 								]
 							]
 							// Snapshot File + File Picker
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -123,7 +166,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 									.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the snapshot file"))))
-									.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
+									.BrowseDirectory(SpatialGDKSettings->GetSpatialOSSnapshotFolderPath())
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
 									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath)
 									.FileTypeFilter(TEXT("Snapshot files (*.snapshot)|*.snapshot"))
@@ -133,6 +176,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 							// Primary Launch Config + File Picker
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -149,16 +193,72 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 									.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the primary launch configuration"))))
-									.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
+									.BrowseDirectory(SpatialGDKSettings->GetSpatialOSDirectory())
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
 									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath)
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
 									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryLaunchConfigPathPicked)
 								]
 							]
+							// Separator
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(2.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SSeparator)
+							]
+							// Explanation text
+							+ SVerticalBox::Slot()
+							.FillHeight(2.0f)
+							.Padding(2.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SCheckBox)
+									.IsChecked(ECheckBoxState::Unchecked)
+									.ToolTipText(FText::FromString(FString(TEXT("Toggle to scale test."))))
+									.OnCheckStateChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnCheckedSimulatedPlayers)
+								]
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								.HAlign(HAlign_Center)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("Simulated Player Deployment Configuration"))))
+								]
+							]
+							// Simulated Players Deployment Name
+							+ SVerticalBox::Slot()
+							.FillHeight(2.0f)
+							.Padding(2.0f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromString(FString(TEXT("Deployment Name"))))
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the simulated player deployment."))))
+								]
+								+ SHorizontalBox::Slot()
+								.FillWidth(1.0f)
+								[
+									SNew(SEditableTextBox)
+									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerDeploymentName)
+									.ToolTipText(FText::FromString(FString(TEXT("The name of the simulated player deployment."))))
+									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerDeploymentNameCommited)
+									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerDeploymentNameCommited, ETextCommit::Default)
+									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled)
+								]
+							]
 							// Simulated Players Number 
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -177,11 +277,13 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.MaxValue(8192)
 									.Value(0)
 									.OnValueChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnNumberOfSimulatedPlayersCommited)
+									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled)
 								]
 							]
 							// Simulated Player Launch Config + File Picker
 							+ SVerticalBox::Slot()
 							.FillHeight(2.0f)
+							.Padding(2.0f)
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
@@ -198,16 +300,39 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonImage(FEditorStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 									.BrowseButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the simulated player launch configuration"))))
-									.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
+									.BrowseDirectory(SpatialGDKSettings->GetSpatialOSDirectory())
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
 									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath)
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
 									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerLaunchConfigPathPicked)
+									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled)
+								]
+							]
+							// Expandeable Logs
+							+ SVerticalBox::Slot()
+								.AutoHeight()
+								.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+								[
+									SNew(SExpandableArea)
+									.AreaTitleFont(FEditorStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font")))
+									.AreaTitle(FText::FromString(FString(TEXT("Simulated Player Logs"))))
+									.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+									.IsEnabled(true)
+									.InitiallyCollapsed(false)
+									.BodyContent()
+									[
+										SNew(SBox)
+										.HeightOverride(250)
+										.WidthOverride(400)
+										[
+											SNew(STextBlock)
+											.Text(FText::FromString(FString(TEXT("Loading..."))))
+										]
 								]
 							]
 							// Launch Simulated Players Deployment Button
 							+ SVerticalBox::Slot()
-							.FillHeight(2.0f)
+							.AutoHeight()
 							.Padding(2.0f)
 							.VAlign(VAlign_Center)
 							[
@@ -263,20 +388,20 @@ FText SSpatialGDKSimulatedPlayerDeployment::GetProjectName() const
 	return FText::FromString(ProjectName);
 }
 
-void SSpatialGDKSimulatedPlayerDeployment::OnDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
+void SSpatialGDKSimulatedPlayerDeployment::OnPrimaryDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
-	 SetDeploymentName(InText.ToString());
+	 SetPrimaryDeploymentName(InText.ToString());
 	 ValidateDeploymentName();
 }
 
-void SSpatialGDKSimulatedPlayerDeployment::SetDeploymentName(const FString & Name)
+void SSpatialGDKSimulatedPlayerDeployment::SetPrimaryDeploymentName(const FString & Name)
 {
-	DeploymentName = Name;
+	PrimaryDeploymentName = Name;
 }
 
-FText SSpatialGDKSimulatedPlayerDeployment::GetDeploymentName() const
+FText SSpatialGDKSimulatedPlayerDeployment::GetPrimaryDeploymentName() const
 {
-	return FText::FromString(DeploymentName);
+	return FText::FromString(PrimaryDeploymentName);
 }
 
 void SSpatialGDKSimulatedPlayerDeployment::OnSnapshotPathPicked(const FString & PickedPath)
@@ -309,6 +434,21 @@ FString SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath() const
 	return PrimaryLaunchConfigPath;
 }
 
+void SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
+{
+	SSpatialGDKSimulatedPlayerDeployment::SetSimulatedPlayerDeploymentName(InText.ToString());
+}
+
+void SSpatialGDKSimulatedPlayerDeployment::SetSimulatedPlayerDeploymentName(const FString & Name)
+{
+	SimulatedPlayerDeploymentName = Name;
+}
+
+FText SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerDeploymentName() const
+{
+	return FText::FromString(SimulatedPlayerDeploymentName);
+}
+
 void SSpatialGDKSimulatedPlayerDeployment::OnNumberOfSimulatedPlayersCommited(uint32 NewValue)
 {
 	SSpatialGDKSimulatedPlayerDeployment::SetNumberOfSimulatedPlayers(NewValue);
@@ -317,6 +457,11 @@ void SSpatialGDKSimulatedPlayerDeployment::OnNumberOfSimulatedPlayersCommited(ui
 void SSpatialGDKSimulatedPlayerDeployment::SetNumberOfSimulatedPlayers(uint32 NumberOfPlayers)
 {
 	NumOfSimulatedPlayers = NumberOfPlayers;
+}
+
+uint32 SSpatialGDKSimulatedPlayerDeployment::GetNumberOfSimulatedPlayers() const
+{
+	return NumOfSimulatedPlayers;
 }
 
 void SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerLaunchConfigPathPicked(const FString & PickedPath)
@@ -336,7 +481,65 @@ FString SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath
 
 FReply SSpatialGDKSimulatedPlayerDeployment::OnLaunchClicked()
 {
-	// TODO: Launch Simulated Player Deployment :)
+	const USpatialGDKEditorSettings* SpatialGDKSettings = GetDefault<USpatialGDKEditorSettings>();
+
+	const FString ExecuteAbsolutePath = SpatialGDKSettings->GetSpatialOSDirectory();
+	const FString CmdExecutable = TEXT("DeploymentLauncher.exe");
+
+	FString CmdArguments = FString::Printf(
+		TEXT("create %s %s %s %s %s "),
+		*SSpatialGDKSimulatedPlayerDeployment::GetProjectName().ToString(),
+		*SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName().ToString(),
+		*SSpatialGDKSimulatedPlayerDeployment::GetPrimaryDeploymentName().ToString(),
+		*SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath(),
+		*SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath()
+	);
+
+	if (SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled())
+	{
+		CmdArguments = FString::Printf(
+			TEXT("%s %s %s %s"),
+			*CmdArguments,
+			*SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerDeploymentName().ToString(),
+			*SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath(),
+			*FString::FromInt(SSpatialGDKSimulatedPlayerDeployment::GetNumberOfSimulatedPlayers())
+		);
+	}
+
+	// Attmpt to detect a system wide version of the svn command line tools
+	void* ReadPipe = nullptr, *WritePipe = nullptr;
+	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
+
+	FString ConsoleOutput;
+	DeploymentLauncherProcHandle = FPlatformProcess::CreateProc(
+		*(CmdExecutable), *CmdArguments, false, true, false, &DeploymentLauncherProcessID, 0,
+		*ExecuteAbsolutePath, ReadPipe, WritePipe);
+
+	FNotificationInfo Info(DeploymentLauncherProcHandle.IsValid() == true
+		? FText::FromString(TEXT("Starting simulated player deployment..."))
+		: FText::FromString(TEXT("Failed to start simulated player deployment")));
+	Info.bUseSuccessFailIcons = true;
+	Info.bFireAndForget = false;
+
+	TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+
+	NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+
+	if (DeploymentLauncherProcHandle.IsValid())
+	{
+		FPlatformProcess::Sleep(1);
+		ConsoleOutput = FPlatformProcess::ReadPipe(ReadPipe);
+		NotificationItem->SetText(FText::FromString(TEXT("We have liftoff")));
+		NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+	}
+	else
+	{
+		NotificationItem->SetText(FText::FromString(TEXT("We don't have liftoff")));
+		NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+	}
+	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+	FPlatformProcess::CloseProc(DeploymentLauncherProcHandle);
+
 	return FReply::Handled();
 }
 
@@ -350,6 +553,21 @@ FReply SSpatialGDKSimulatedPlayerDeployment::OnStopClicked()
 {
 	// TODO: Invoke the Platform SDK to stop the deployments
 	return FReply::Handled();
+}
+
+void SSpatialGDKSimulatedPlayerDeployment::OnCloudDocumentationClicked()
+{
+	FString WebError;
+	FPlatformProcess::LaunchURL(TEXT("https://docs.improbable.io/unreal/alpha/content/get-started/tutorial#build-your-assemblies"), TEXT(""), &WebError);
+	if (!WebError.IsEmpty())
+	{
+		FNotificationInfo Info(FText::FromString(WebError));
+		Info.ExpireDuration = 3.0f;
+		Info.bUseSuccessFailIcons = true;
+		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+		NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+		NotificationItem->ExpireAndFadeout();
+	}
 }
 
 void SSpatialGDKSimulatedPlayerDeployment::ValidateAssemblyName()
@@ -371,9 +589,9 @@ void SSpatialGDKSimulatedPlayerDeployment::ValidateProjectName()
 void SSpatialGDKSimulatedPlayerDeployment::ValidateDeploymentName()
 {
 	const FRegexPattern DeploymentPattern(TEXT("^[a-z0-9_]{2,32}$"));
-	FRegexMatcher RegMatcher(DeploymentPattern, DeploymentName);
+	FRegexMatcher RegMatcher(DeploymentPattern, PrimaryDeploymentName);
 
-	DeploymentNameIsValid = RegMatcher.FindNext();
+	PrimaryDeploymentNameIsValid = RegMatcher.FindNext();
 }
 
 bool SSpatialGDKSimulatedPlayerDeployment::IsAssemblyNameValid() const
@@ -386,9 +604,24 @@ bool SSpatialGDKSimulatedPlayerDeployment::IsProjectNameValid() const
 	return ProjectNameIsValid;
 }
 
-bool SSpatialGDKSimulatedPlayerDeployment::IsDeploymentNameValid() const
+bool SSpatialGDKSimulatedPlayerDeployment::IsPrimaryDeploymentNameValid() const
 {
-	return DeploymentNameIsValid;
+	return PrimaryDeploymentNameIsValid;
+}
+
+bool SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled() const
+{
+	return SimulatedPlayersIsActive;
+}
+
+void SSpatialGDKSimulatedPlayerDeployment::OnCheckedSimulatedPlayers(ECheckBoxState NewCheckedState)
+{
+	SSpatialGDKSimulatedPlayerDeployment::SetSimulatedPlayersEnabledState(NewCheckedState == ECheckBoxState::Checked);
+}
+
+void SSpatialGDKSimulatedPlayerDeployment::SetSimulatedPlayersEnabledState(bool IsEnabled)
+{
+	SimulatedPlayersIsActive = IsEnabled;
 }
 
 bool SSpatialGDKSimulatedPlayerDeployment::IsDeploymentConfigurationValid() const
@@ -396,5 +629,5 @@ bool SSpatialGDKSimulatedPlayerDeployment::IsDeploymentConfigurationValid() cons
 	return
 		IsAssemblyNameValid() &&
 		IsProjectNameValid() &&
-		IsDeploymentNameValid();
+		IsPrimaryDeploymentNameValid();
 }

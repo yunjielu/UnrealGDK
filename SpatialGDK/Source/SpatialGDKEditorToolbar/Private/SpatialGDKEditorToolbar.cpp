@@ -452,7 +452,6 @@ void FSpatialGDKEditorToolbarModule::ShowSimulatedPlayerDeploymentDialog()
 		[
 			SAssignNew(SimulatedPlayerDeploymentConfigPtr, SSpatialGDKSimulatedPlayerDeployment)
 			.ParentWindow(SimulatedPlayerDeploymentWindowPtr)
-		//.OnSourceControlLoginClosed(InOnSourceControlLoginClosed)
 		]
 	);
 
