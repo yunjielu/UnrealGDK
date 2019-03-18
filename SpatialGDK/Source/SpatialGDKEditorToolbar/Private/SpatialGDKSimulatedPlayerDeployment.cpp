@@ -24,6 +24,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 	AssemblyName = "UnrealAssembly";
 
 	ParentWindowPtr = InArgs._ParentWindow;
+	SpatialGDKEditorPtr = InArgs._SpatialGDKEditor;
 
 	ChildSlot
 		[
@@ -481,64 +482,36 @@ FString SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath
 
 FReply SSpatialGDKSimulatedPlayerDeployment::OnLaunchClicked()
 {
-	const USpatialGDKEditorSettings* SpatialGDKSettings = GetDefault<USpatialGDKEditorSettings>();
+	if (TSharedPtr<FSpatialGDKEditor> SpatialGDKEditorSharedPtr = SpatialGDKEditorPtr.Pin()) {
+		FNotificationInfo Info(FText::FromString(TEXT("Starting simulated player deployment...")));
+		Info.bUseSuccessFailIcons = true;
+		Info.bFireAndForget = false;
 
-	const FString ExecuteAbsolutePath = SpatialGDKSettings->GetSpatialOSDirectory();
-	const FString CmdExecutable = TEXT("DeploymentLauncher.exe");
+		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
 
-	FString CmdArguments = FString::Printf(
-		TEXT("create %s %s %s %s %s "),
-		*SSpatialGDKSimulatedPlayerDeployment::GetProjectName().ToString(),
-		*SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName().ToString(),
-		*SSpatialGDKSimulatedPlayerDeployment::GetPrimaryDeploymentName().ToString(),
-		*SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath(),
-		*SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath()
-	);
+		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
 
-	if (SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled())
-	{
-		CmdArguments = FString::Printf(
-			TEXT("%s %s %s %s"),
-			*CmdArguments,
+		SpatialGDKEditorSharedPtr->LaunchCloudDeployment(
+			*SSpatialGDKSimulatedPlayerDeployment::GetProjectName().ToString(),
+			*SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName().ToString(),
+			*SSpatialGDKSimulatedPlayerDeployment::GetPrimaryDeploymentName().ToString(),
+			*SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath(),
+			*SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath(),
+			SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled(),
 			*SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerDeploymentName().ToString(),
 			*SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath(),
-			*FString::FromInt(SSpatialGDKSimulatedPlayerDeployment::GetNumberOfSimulatedPlayers())
+			*FString::FromInt(SSpatialGDKSimulatedPlayerDeployment::GetNumberOfSimulatedPlayers()),
+			FSimpleDelegate::CreateLambda([NotificationItem]() {
+				NotificationItem->SetText(FText::FromString(TEXT("We have liftoff")));
+				NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+			}),
+			FSimpleDelegate::CreateLambda([NotificationItem]() {
+				NotificationItem->SetText(FText::FromString(TEXT("We don't have liftoff")));
+				NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+			})
 		);
+		return FReply::Handled();
 	}
-
-	// Attmpt to detect a system wide version of the svn command line tools
-	void* ReadPipe = nullptr, *WritePipe = nullptr;
-	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
-
-	FString ConsoleOutput;
-	DeploymentLauncherProcHandle = FPlatformProcess::CreateProc(
-		*(CmdExecutable), *CmdArguments, false, true, false, &DeploymentLauncherProcessID, 0,
-		*ExecuteAbsolutePath, ReadPipe, WritePipe);
-
-	FNotificationInfo Info(DeploymentLauncherProcHandle.IsValid() == true
-		? FText::FromString(TEXT("Starting simulated player deployment..."))
-		: FText::FromString(TEXT("Failed to start simulated player deployment")));
-	Info.bUseSuccessFailIcons = true;
-	Info.bFireAndForget = false;
-
-	TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
-
-	NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-
-	if (DeploymentLauncherProcHandle.IsValid())
-	{
-		FPlatformProcess::Sleep(1);
-		ConsoleOutput = FPlatformProcess::ReadPipe(ReadPipe);
-		NotificationItem->SetText(FText::FromString(TEXT("We have liftoff")));
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
-	}
-	else
-	{
-		NotificationItem->SetText(FText::FromString(TEXT("We don't have liftoff")));
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
-	}
-	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
-	FPlatformProcess::CloseProc(DeploymentLauncherProcHandle);
 
 	return FReply::Handled();
 }

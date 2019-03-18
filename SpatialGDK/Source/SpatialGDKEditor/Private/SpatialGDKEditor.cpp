@@ -5,11 +5,13 @@
 #include "Async/Async.h"
 #include "SpatialGDKEditorSchemaGenerator.h"
 #include "SpatialGDKEditorSnapshotGenerator.h"
+#include "SpatialGDKEditorCloudLauncher.h"
 
 #include "Editor.h"
 
 #include "AssetRegistryModule.h"
 #include "GeneralProjectSettings.h"
+#include "SpatialGDKEditorSettings.h"
 
 DEFINE_LOG_CATEGORY(LogSpatialGDKEditor);
 
@@ -83,4 +85,23 @@ void FSpatialGDKEditor::GenerateSnapshot(UWorld* World, FString SnapshotFilename
 	{
 		FailureCallback.ExecuteIfBound();
 	}
+}
+
+void FSpatialGDKEditor::LaunchCloudDeployment(const TCHAR * ProjectName, const TCHAR * AssemblyName, const TCHAR * PrimaryDeploymentName, const TCHAR * PrimaryLaunchConfigPath,
+	const TCHAR * SnapshotPath, const bool IsSimulatedPlayersEnabled, const TCHAR * SimulatedPlayersDeploymentName, const TCHAR * SimulatedPlayerLaunchConfigPath,
+	const TCHAR * NumberOfSimulatedPlayers, FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback)
+{
+	SchemaGeneratorResult = Async<bool>(EAsyncExecution::Thread,
+		[=]() { return SpatialGDKCloudLaunch(ProjectName, AssemblyName, PrimaryDeploymentName, PrimaryLaunchConfigPath, SnapshotPath,
+			IsSimulatedPlayersEnabled, SimulatedPlayersDeploymentName, SimulatedPlayerLaunchConfigPath, NumberOfSimulatedPlayers); },
+		[this, SuccessCallback, FailureCallback] {
+			if (!SchemaGeneratorResult.IsReady() || SchemaGeneratorResult.Get() != true)
+			{
+				FailureCallback.ExecuteIfBound();
+			}
+			else
+			{
+				SuccessCallback.ExecuteIfBound();
+			}
+	});
 }

@@ -3,10 +3,12 @@
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Templates/SharedPointer.h"
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "SpatialGDKEditor.h"
 
 class SWindow;
 
@@ -20,6 +22,7 @@ public:
 
 	/** A reference to the parent window */
 	SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
+	SLATE_ARGUMENT(TSharedPtr<FSpatialGDKEditor>, SpatialGDKEditor)
 
 	SLATE_END_ARGS()
 
@@ -47,6 +50,9 @@ private:
 
 	/** The parent window of this widget */
 	TWeakPtr<SWindow> ParentWindowPtr;
+
+	/** Pointer to the SpatialGDK editor */
+	TWeakPtr<FSpatialGDKEditor> SpatialGDKEditorPtr;
 
 	/** Delegate to commit assembly name */
 	void OnDeploymentAssemblyCommited(const FText& InText, ETextCommit::Type InCommitType);
