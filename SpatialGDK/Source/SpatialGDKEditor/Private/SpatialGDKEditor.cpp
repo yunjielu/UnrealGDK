@@ -87,15 +87,12 @@ void FSpatialGDKEditor::GenerateSnapshot(UWorld* World, FString SnapshotFilename
 	}
 }
 
-void FSpatialGDKEditor::LaunchCloudDeployment(const TCHAR * ProjectName, const TCHAR * AssemblyName, const TCHAR * PrimaryDeploymentName, const TCHAR * PrimaryLaunchConfigPath,
-	const TCHAR * SnapshotPath, const bool IsSimulatedPlayersEnabled, const TCHAR * SimulatedPlayersDeploymentName, const TCHAR * SimulatedPlayerLaunchConfigPath,
-	const TCHAR * NumberOfSimulatedPlayers, FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback)
+void FSpatialGDKEditor::LaunchCloudDeployment(FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback)
 {
 	SchemaGeneratorResult = Async<bool>(EAsyncExecution::Thread,
 		[=]()
 		{
-			return SpatialGDKCloudLaunch(ProjectName, AssemblyName, PrimaryDeploymentName, PrimaryLaunchConfigPath, SnapshotPath,
-				IsSimulatedPlayersEnabled, SimulatedPlayersDeploymentName, SimulatedPlayerLaunchConfigPath, NumberOfSimulatedPlayers);
+			return SpatialGDKCloudLaunch();
 		},
 		[this, SuccessCallback, FailureCallback]
 		{

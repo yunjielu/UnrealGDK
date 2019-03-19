@@ -1,11 +1,11 @@
 #include "SpatialGDKEditorCloudLauncher.h"
 
 #include "SpatialGDKEditorSettings.h"
+#include "SpatialGDKEditorCloudLauncherSettings.h"
 
-bool SpatialGDKCloudLaunch(const TCHAR * ProjectName, const TCHAR * AssemblyName, const TCHAR * PrimaryDeploymentName, const TCHAR * PrimaryLaunchConfigPath,
-	const TCHAR * SnapshotPath, const bool IsSimulatedPlayersEnabled, const TCHAR * SimulatedPlayersDeploymentName, const TCHAR * SimulatedPlayerLaunchConfigPath,
-	const TCHAR * NumberOfSimulatedPlayers)
+bool SpatialGDKCloudLaunch()
 {
+	const USpatialGDKEditorCloudLauncherSettings* SpatialGDKCloudLauncherSettings = GetDefault<USpatialGDKEditorCloudLauncherSettings>();
 	bool SuccessfullyExecuted = true;
 	uint32 DeploymentLauncherProcessID;
 
@@ -16,17 +16,21 @@ bool SpatialGDKCloudLaunch(const TCHAR * ProjectName, const TCHAR * AssemblyName
 
 	FString CmdArguments = FString::Printf(
 		TEXT("create %s %s %s %s %s "),
-		ProjectName, AssemblyName, PrimaryDeploymentName, PrimaryLaunchConfigPath, SnapshotPath
+		*SpatialGDKCloudLauncherSettings->GetProjectName(),
+		*SpatialGDKCloudLauncherSettings->GetAssemblyName(),
+		*SpatialGDKCloudLauncherSettings->GetPrimaryDeploymentName(),
+		*SpatialGDKCloudLauncherSettings->GetPrimaryLanchConfigPath(),
+		*SpatialGDKCloudLauncherSettings->GetSnapshotPath()
 	);
 
-	if (IsSimulatedPlayersEnabled)
+	if (SpatialGDKCloudLauncherSettings->IsSimulatedPlayersEnabled())
 	{
 		CmdArguments = FString::Printf(
 			TEXT("%s %s %s %s"),
 			*CmdArguments,
-			SimulatedPlayersDeploymentName,
-			SimulatedPlayerLaunchConfigPath,
-			NumberOfSimulatedPlayers
+			*SpatialGDKCloudLauncherSettings->GetSimulatedPlayerDeploymentName(),
+			*SpatialGDKCloudLauncherSettings->GetSimulatedPlayerLaunchConfigPath(),
+			*FString::FromInt(SpatialGDKCloudLauncherSettings->GetNumberOfSimulatedPlayer())
 		);
 	}
 

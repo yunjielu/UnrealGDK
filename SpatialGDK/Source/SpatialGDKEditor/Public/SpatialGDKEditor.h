@@ -16,9 +16,7 @@ public:
 
 	void GenerateSchema(FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback, FSpatialGDKEditorErrorHandler ErrorCallback);
 	void GenerateSnapshot(UWorld* World, FString SnapshotFilename, FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback, FSpatialGDKEditorErrorHandler ErrorCallback);
-	void LaunchCloudDeployment(const TCHAR * ProjectName, const TCHAR * AssemblyName, const TCHAR * PrimaryDeploymentName, const TCHAR * PrimaryLaunchConfigPath,
-		const TCHAR * SnapshotPath, const bool IsSimulatedPlayersEnabled, const TCHAR * SimulatedPlayersDeploymentName, const TCHAR * SimulatedPlayerLaunchConfigPath,
-		const TCHAR * NumberOfSimulatedPlayers, FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback);
+	void LaunchCloudDeployment(FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback);
 
 	bool IsSchemaGeneratorRunning() { return bSchemaGeneratorRunning; }
 
