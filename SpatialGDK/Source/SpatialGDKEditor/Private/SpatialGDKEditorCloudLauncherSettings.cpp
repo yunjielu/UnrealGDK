@@ -13,6 +13,8 @@
 USpatialGDKEditorCloudLauncherSettings::USpatialGDKEditorCloudLauncherSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	const USpatialGDKEditorSettings * SpatialEditorSettings = GetDefault<USpatialGDKEditorSettings>();
+	SnapshotPath.FilePath = FPaths::Combine(SpatialEditorSettings->GetSpatialOSSnapshotFolderPath(), SpatialEditorSettings->GetSpatialOSSnapshotFile());
 	ProjectName = GetProjectNameFromSpatial();
 }
 
@@ -109,12 +111,12 @@ void USpatialGDKEditorCloudLauncherSettings::SetProjectName(const FString & Name
 
 void USpatialGDKEditorCloudLauncherSettings::SetPrimaryLaunchConfigPath(const FString & Path)
 {
-	PrimaryLaunchConfigPath.FilePath = Path;
+	PrimaryLaunchConfigPath.FilePath = FPaths::ConvertRelativePathToFull(Path);
 }
 
 void USpatialGDKEditorCloudLauncherSettings::SetSnapshotPath(const FString & Path)
 {
-	SnapshotPath.FilePath = Path;
+	SnapshotPath.FilePath = FPaths::ConvertRelativePathToFull(Path);
 }
 
 void USpatialGDKEditorCloudLauncherSettings::SetSimulatedPlayersEnabledState(bool IsEnabled)
@@ -129,7 +131,7 @@ void USpatialGDKEditorCloudLauncherSettings::SetSimulatedPlayerDeploymentName(co
 
 void USpatialGDKEditorCloudLauncherSettings::SetSimulatedPlayerLaunchConfigPath(const FString & Path)
 {
-	SimulatedPlayerLaunchConfigPath.FilePath = Path;
+	SimulatedPlayerLaunchConfigPath.FilePath = FPaths::ConvertRelativePathToFull(Path);
 }
 
 void USpatialGDKEditorCloudLauncherSettings::SetNumberOfSimulatedPlayers(uint32 Number)
