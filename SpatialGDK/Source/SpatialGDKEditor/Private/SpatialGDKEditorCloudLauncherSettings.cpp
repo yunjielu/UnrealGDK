@@ -1,39 +1,71 @@
 // Copyright (c) Improbable Worlds Ltd, All Rights Reserved
 #include "SpatialGDKEditorCloudLauncherSettings.h"
 
+#include "SpatialGDKEditorSettings.h";
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Internationalization/Regex.h"
+#include "Templates/SharedPointer.h"
+#include "Serialization/JsonReader.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "Misc/FileHelper.h"
 
 USpatialGDKEditorCloudLauncherSettings::USpatialGDKEditorCloudLauncherSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ProjectName = GetProjectNameFromSpatial();
 }
 
 FString USpatialGDKEditorCloudLauncherSettings::ToString()
 {
-	return TEXT("TODO");
-	/*TArray<FStringFormatArg> Args;
-	Args.Add(SpatialOSDirectory.Path);
-	Args.Add(bDeleteDynamicEntities);
-	Args.Add(bGenerateDefaultLaunchConfig);
-	Args.Add(SpatialOSLaunchConfig.FilePath);
-	Args.Add(bStopSpatialOnExit);
-	Args.Add(SpatialOSSnapshotPath.Path);
-	Args.Add(SpatialOSSnapshotFile);
-	Args.Add(GeneratedSchemaOutputFolder.Path);
-	Args.Add(bGeneratePlaceholderEntitiesInSnapshot);
+	TArray<FStringFormatArg> Args;
+
+	Args.Add(ProjectName);
+	Args.Add(PrimaryDeploymentName);
+	Args.Add(AssemblyName);
+	Args.Add(PrimaryLaunchConfigPath.FilePath);
+	Args.Add(SnapshotPath.FilePath);
+	Args.Add(SimulatedPlayerDeploymentName);
+	Args.Add(SimulatedPlayerLaunchConfigPath.FilePath);
+	Args.Add(NumberOfSimulatedPlayers);
+	Args.Add(PrimaryDeploymentNameIsValid);
+	Args.Add(AssemblyNameIsValid);
+	Args.Add(ProjectNameIsValid);
+	Args.Add(SimulatedPlayersIsEnabled);
 
 	return FString::Format(TEXT(
-		"ProjectRootFolder={0}, "
-		"bDeleteDynamicEntities={1}"
-		"bGenerateDefaultLaunchConfig={2}"
-		"SpatialOSLaunchArgument={3}, "
-		"bStopSpatialOnExit={4}, "
-		"SpatialOSSnapshotPath={5}, "
-		"SpatialOSSnapshotFile={6}, "
-		"GeneratedSchemaOutputFolder={7}"
-		"bGeneratePlaceholderEntitiesInSnapshot={8}")
-		, Args);*/
+		"ProjectName={0}, "
+		"PrimaryDeploymentName={1}"
+		"AssemblyName={2}"
+		"PrimaryLaunchConfigPath={3}, "
+		"SnapshotPath={4}, "
+		"SimulatedPlayerDeploymentName={5}, "
+		"SimulatedPlayerLaunchConfigPath={6}, "
+		"NumberOfSimulatedPlayers={7}, "
+		"PrimaryDeploymentNameIsValid={8}, "
+		"AssemblyNameIsValid={9}, "
+		"ProjectNameIsValid={10}, "
+		"SimulatedPlayersIsEnabled={11}")
+		, Args);
+}
+
+FString USpatialGDKEditorCloudLauncherSettings::GetProjectNameFromSpatial()
+{
+	FString FileContents;
+	FString SpatialOSFile = GetDefault<USpatialGDKEditorSettings>()->GetSpatialOSDirectory().Append(TEXT("/spatialos.json"));
+
+	if (!FFileHelper::LoadFileToString(FileContents, *SpatialOSFile))
+	{
+		return TEXT("");
+	}
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(FileContents);
+	TSharedPtr<FJsonObject> JsonObject;
+
+	if (FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		return JsonObject->GetStringField("name");
+	}
+	return TEXT("");
 }
 
 void USpatialGDKEditorCloudLauncherSettings::ValidateAssemblyName()

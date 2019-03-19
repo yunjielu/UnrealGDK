@@ -440,7 +440,6 @@ FReply SSpatialGDKSimulatedPlayerDeployment::OnRefreshClicked()
 
 FReply SSpatialGDKSimulatedPlayerDeployment::OnStopClicked()
 {
-	// TODO: Invoke the Platform SDK to stop the deployments
 	return FReply::Handled();
 }
 
