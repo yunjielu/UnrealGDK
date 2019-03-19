@@ -348,6 +348,21 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsDeploymentConfigurationValid)
 								]
 							]
+							// Stop Cloud Deployment Button
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(2.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SBox)
+								.WidthOverride(500)
+								[
+									SNew(SButton)
+									.HAlign(HAlign_Center)
+									.Text(FText::FromString(FString(TEXT("Stop Deployments"))))
+									.OnClicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnStopClicked)
+								]
+							]
 						]
 						+ SVerticalBox::Slot()
 						.AutoHeight()
@@ -440,6 +455,26 @@ FReply SSpatialGDKSimulatedPlayerDeployment::OnRefreshClicked()
 
 FReply SSpatialGDKSimulatedPlayerDeployment::OnStopClicked()
 {
+	if (TSharedPtr<FSpatialGDKEditor> SpatialGDKEditorSharedPtr = SpatialGDKEditorPtr.Pin()) {
+		FNotificationInfo Info(FText::FromString(TEXT("Stopping cloud deployment ...")));
+		Info.bUseSuccessFailIcons = true;
+		Info.bFireAndForget = false;
+
+		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+
+		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+
+		SpatialGDKEditorSharedPtr->StopCloudDeployment(
+			FSimpleDelegate::CreateLambda([NotificationItem]() {
+			NotificationItem->SetText(FText::FromString(TEXT("We managed to stop something")));
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+		}),
+			FSimpleDelegate::CreateLambda([NotificationItem]() {
+			NotificationItem->SetText(FText::FromString(TEXT("We couldn't even start stopping ;(")));
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+		})
+			);
+	}
 	return FReply::Handled();
 }
 

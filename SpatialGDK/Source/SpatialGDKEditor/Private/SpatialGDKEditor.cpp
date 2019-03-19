@@ -89,14 +89,30 @@ void FSpatialGDKEditor::GenerateSnapshot(UWorld* World, FString SnapshotFilename
 
 void FSpatialGDKEditor::LaunchCloudDeployment(FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback)
 {
-	SchemaGeneratorResult = Async<bool>(EAsyncExecution::Thread,
+	LaunchCloudResult = Async<bool>(EAsyncExecution::Thread,
 		[=]()
 		{
 			return SpatialGDKCloudLaunch();
 		},
 		[this, SuccessCallback, FailureCallback]
 		{
-			if (!SchemaGeneratorResult.IsReady() || SchemaGeneratorResult.Get() != true)
+			if (!LaunchCloudResult.IsReady() || LaunchCloudResult.Get() != true)
+			{
+				FailureCallback.ExecuteIfBound();
+			}
+			else
+			{
+				SuccessCallback.ExecuteIfBound();
+			}
+		});
+}
+
+void FSpatialGDKEditor::StopCloudDeployment(FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback)
+{
+	StopCloudResult = Async<bool>(EAsyncExecution::Thread, SpatialGDKCloudStop,
+		[this, SuccessCallback, FailureCallback]
+		{
+			if (!StopCloudResult.IsReady() || StopCloudResult.Get() != true)
 			{
 				FailureCallback.ExecuteIfBound();
 			}

@@ -52,3 +52,25 @@ bool SpatialGDKCloudLaunch()
 	}
 	return SuccessfullyExecuted;
 }
+
+bool SpatialGDKCloudStop()
+{
+	const USpatialGDKEditorCloudLauncherSettings* SpatialGDKCloudLauncherSettings = GetDefault<USpatialGDKEditorCloudLauncherSettings>();
+	bool SuccessfullyExecuted = true;
+	uint32 DeploymentLauncherProcessID;
+
+	const USpatialGDKEditorSettings* SpatialGDKSettings = GetDefault<USpatialGDKEditorSettings>();
+
+	const FString ExecuteAbsolutePath = SpatialGDKSettings->GetSpatialOSDirectory();
+	const FString CmdExecutable = TEXT("DeploymentLauncher.exe");
+
+	FString CmdArguments = FString::Printf(
+		TEXT("stop")
+	);
+
+	FProcHandle DeploymentLauncherProcHandle = FPlatformProcess::CreateProc(
+		*(CmdExecutable), *CmdArguments, true, false, false, &DeploymentLauncherProcessID, 0,
+		*ExecuteAbsolutePath, nullptr, nullptr);
+
+	return DeploymentLauncherProcHandle.IsValid();
+}
