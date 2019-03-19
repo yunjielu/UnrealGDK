@@ -306,6 +306,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
 									.FilePath_UObject(SpatialGDKCloudLauncherSettings, &USpatialGDKEditorCloudLauncherSettings::GetSimulatedPlayerLaunchConfigPath)
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
+									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerLaunchConfigPathPicked)
 									.IsEnabled_UObject(SpatialGDKCloudLauncherSettings, &USpatialGDKEditorCloudLauncherSettings::IsSimulatedPlayersEnabled)
 								]
 							]
