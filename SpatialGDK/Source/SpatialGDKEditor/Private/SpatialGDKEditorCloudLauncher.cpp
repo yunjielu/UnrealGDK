@@ -8,6 +8,7 @@ bool SpatialGDKCloudLaunch(const TCHAR * ProjectName, const TCHAR * AssemblyName
 {
 	bool SuccessfullyExecuted = true;
 	uint32 DeploymentLauncherProcessID;
+
 	const USpatialGDKEditorSettings* SpatialGDKSettings = GetDefault<USpatialGDKEditorSettings>();
 
 	const FString ExecuteAbsolutePath = SpatialGDKSettings->GetSpatialOSDirectory();

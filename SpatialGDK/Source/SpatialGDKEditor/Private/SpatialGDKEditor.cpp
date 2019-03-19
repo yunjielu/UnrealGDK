@@ -92,9 +92,13 @@ void FSpatialGDKEditor::LaunchCloudDeployment(const TCHAR * ProjectName, const T
 	const TCHAR * NumberOfSimulatedPlayers, FSimpleDelegate SuccessCallback, FSimpleDelegate FailureCallback)
 {
 	SchemaGeneratorResult = Async<bool>(EAsyncExecution::Thread,
-		[=]() { return SpatialGDKCloudLaunch(ProjectName, AssemblyName, PrimaryDeploymentName, PrimaryLaunchConfigPath, SnapshotPath,
-			IsSimulatedPlayersEnabled, SimulatedPlayersDeploymentName, SimulatedPlayerLaunchConfigPath, NumberOfSimulatedPlayers); },
-		[this, SuccessCallback, FailureCallback] {
+		[=]()
+		{
+			return SpatialGDKCloudLaunch(ProjectName, AssemblyName, PrimaryDeploymentName, PrimaryLaunchConfigPath, SnapshotPath,
+				IsSimulatedPlayersEnabled, SimulatedPlayersDeploymentName, SimulatedPlayerLaunchConfigPath, NumberOfSimulatedPlayers);
+		},
+		[this, SuccessCallback, FailureCallback]
+		{
 			if (!SchemaGeneratorResult.IsReady() || SchemaGeneratorResult.Get() != true)
 			{
 				FailureCallback.ExecuteIfBound();
@@ -103,5 +107,5 @@ void FSpatialGDKEditor::LaunchCloudDeployment(const TCHAR * ProjectName, const T
 			{
 				SuccessCallback.ExecuteIfBound();
 			}
-	});
+		});
 }

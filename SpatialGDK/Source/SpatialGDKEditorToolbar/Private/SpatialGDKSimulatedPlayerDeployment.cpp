@@ -11,8 +11,10 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SFilePathPicker.h"
+#include "SharedPointer.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "SpatialGDKEditorSettings.h"
+#include "SpatialGDKEditorCloudLauncherSettings.h"
 #include "EditorDirectories.h"
 
 #include "Internationalization/Regex.h"
@@ -20,7 +22,7 @@
 void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 {
 	const USpatialGDKEditorSettings* SpatialGDKSettings = GetDefault<USpatialGDKEditorSettings>();
-
+	USpatialGDKEditorCloudLauncherSettings* SpatialGDKCloudLauncherSettings = GetMutableDefault<USpatialGDKEditorCloudLauncherSettings>();
 	AssemblyName = "UnrealAssembly";
 
 	ParentWindowPtr = InArgs._ParentWindow;
@@ -95,7 +97,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetProjectName)
+									.Text(FText::FromString(SpatialGDKCloudLauncherSettings->GetProjectName()))
 									.ToolTipText(FText::FromString(FString(TEXT("Project Name"))))
 									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnProjectNameCommited)
 									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnProjectNameCommited, ETextCommit::Default)
@@ -118,7 +120,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName)
+									.Text(FText::FromString(SpatialGDKCloudLauncherSettings->GetAssemblyName()))
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the assembly."))))
 									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentAssemblyCommited)
 									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnDeploymentAssemblyCommited, ETextCommit::Default)
@@ -141,7 +143,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetPrimaryDeploymentName)
+									.Text(FText::FromString(SpatialGDKCloudLauncherSettings->GetPrimaryDeploymentName()))
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
 									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryDeploymentNameCommited)
 									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryDeploymentNameCommited, ETextCommit::Default)
@@ -169,7 +171,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the snapshot file"))))
 									.BrowseDirectory(SpatialGDKSettings->GetSpatialOSSnapshotFolderPath())
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
-									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetSnapshotPath)
+									.FilePath(SpatialGDKCloudLauncherSettings->GetSnapshotPath())
 									.FileTypeFilter(TEXT("Snapshot files (*.snapshot)|*.snapshot"))
 									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnSnapshotPathPicked)
 								]
@@ -196,7 +198,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the primary launch configuration"))))
 									.BrowseDirectory(SpatialGDKSettings->GetSpatialOSDirectory())
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
-									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetPrimaryLaunchConfigPath)
+									.FilePath(SpatialGDKCloudLauncherSettings->GetPrimaryLanchConfigPath())
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
 									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnPrimaryLaunchConfigPathPicked)
 								]
@@ -220,7 +222,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 								.AutoWidth()
 								[
 									SNew(SCheckBox)
-									.IsChecked(ECheckBoxState::Unchecked)
+									.IsChecked(SpatialGDKCloudLauncherSettings->IsSimulatedPlayersEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 									.ToolTipText(FText::FromString(FString(TEXT("Toggle to scale test."))))
 									.OnCheckStateChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnCheckedSimulatedPlayers)
 								]
@@ -249,7 +251,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 								.FillWidth(1.0f)
 								[
 									SNew(SEditableTextBox)
-									.Text(this, &SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerDeploymentName)
+									.Text(FText::FromString(SpatialGDKCloudLauncherSettings->GetSimulatedPlayerDeploymentName()))
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the simulated player deployment."))))
 									.OnTextCommitted(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerDeploymentNameCommited)
 									.OnTextChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerDeploymentNameCommited, ETextCommit::Default)
@@ -276,7 +278,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.ToolTipText(FText::FromString(FString(TEXT("The name of the deployment."))))
 									.MinValue(1)
 									.MaxValue(8192)
-									.Value(0)
+									.Value(SpatialGDKCloudLauncherSettings->GetNumberOfSimulatedPlayer())
 									.OnValueChanged(this, &SSpatialGDKSimulatedPlayerDeployment::OnNumberOfSimulatedPlayersCommited)
 									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled)
 								]
@@ -303,7 +305,7 @@ void SSpatialGDKSimulatedPlayerDeployment::Construct(const FArguments& InArgs)
 									.BrowseButtonToolTip(FText::FromString(FString(TEXT("Path to the simulated player launch configuration"))))
 									.BrowseDirectory(SpatialGDKSettings->GetSpatialOSDirectory())
 									.BrowseTitle(FText::FromString(FString(TEXT("File picker..."))))
-									.FilePath(this, &SSpatialGDKSimulatedPlayerDeployment::GetSimulatedPlayerLaunchConfigPath)
+									.FilePath(SpatialGDKCloudLauncherSettings->GetSimulatedPlayerLaunchConfigPath())
 									.FileTypeFilter(TEXT("Configuration files (*.json)|*.json"))
 									.OnPathPicked(this, &SSpatialGDKSimulatedPlayerDeployment::OnSimulatedPlayerLaunchConfigPathPicked)
 									.IsEnabled(this, &SSpatialGDKSimulatedPlayerDeployment::IsSimulatedPlayersEnabled)
@@ -375,6 +377,8 @@ FText SSpatialGDKSimulatedPlayerDeployment::GetAssemblyName() const
 
 void SSpatialGDKSimulatedPlayerDeployment::OnProjectNameCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
+	USpatialGDKEditorCloudLauncherSettings* SpatialGDKCloudLauncherSettings = GetMutableDefault<USpatialGDKEditorCloudLauncherSettings>();
+	SpatialGDKCloudLauncherSettings->SetProjectName(InText.ToString());
 	SetProjectName(InText.ToString());
 	ValidateProjectName();
 }
@@ -391,8 +395,10 @@ FText SSpatialGDKSimulatedPlayerDeployment::GetProjectName() const
 
 void SSpatialGDKSimulatedPlayerDeployment::OnPrimaryDeploymentNameCommited(const FText & InText, ETextCommit::Type InCommitType)
 {
-	 SetPrimaryDeploymentName(InText.ToString());
-	 ValidateDeploymentName();
+	USpatialGDKEditorCloudLauncherSettings* SpatialGDKCloudLauncherSettings = GetMutableDefault<USpatialGDKEditorCloudLauncherSettings>();
+	SpatialGDKCloudLauncherSettings->SetPrimaryDeploymentName(InText.ToString());
+	SetPrimaryDeploymentName(InText.ToString());
+	ValidateDeploymentName();
 }
 
 void SSpatialGDKSimulatedPlayerDeployment::SetPrimaryDeploymentName(const FString & Name)

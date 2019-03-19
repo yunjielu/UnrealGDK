@@ -9,6 +9,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "SpatialGDKEditor.h"
+#include "SpatialGDKEditorCloudLauncherSettings.h"
 
 class SWindow;
 
@@ -53,6 +54,8 @@ private:
 
 	/** Pointer to the SpatialGDK editor */
 	TWeakPtr<FSpatialGDKEditor> SpatialGDKEditorPtr;
+
+	TSharedPtr<USpatialGDKEditorCloudLauncherSettings> SpatialGDKCloudSettings;
 
 	/** Delegate to commit assembly name */
 	void OnDeploymentAssemblyCommited(const FText& InText, ETextCommit::Type InCommitType);
