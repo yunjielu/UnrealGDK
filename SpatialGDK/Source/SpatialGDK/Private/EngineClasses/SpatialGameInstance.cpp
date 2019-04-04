@@ -20,6 +20,9 @@ bool USpatialGameInstance::HasSpatialNetDriver() const
 {
 	bool bHasSpatialNetDriver = false;
 
+
+	int a = 1;
+
 	if (WorldContext != nullptr)
 	{
 		UWorld* World = GetWorld();
