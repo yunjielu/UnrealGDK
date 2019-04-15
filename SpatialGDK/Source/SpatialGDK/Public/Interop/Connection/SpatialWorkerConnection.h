@@ -76,4 +76,6 @@ private:
 	bool bIsConnected;
 
 	TArray<FString> CachedWorkerAttributes;
+
+	TUniquePtr<Worker_ComponentVtable> ComponentVtable;
 };

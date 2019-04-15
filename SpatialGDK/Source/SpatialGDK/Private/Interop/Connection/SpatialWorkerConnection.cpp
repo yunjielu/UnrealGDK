@@ -106,9 +106,11 @@ void USpatialWorkerConnection::ConnectToReceptionist(bool bConnectAsClient)
 	FTCHARToUTF8 ProtocolLoggingPrefixCStr(*FinalProtocolLoggingPrefix);
 	ConnectionParams.protocol_logging.log_prefix = ProtocolLoggingPrefixCStr.Get();
 
-	Worker_ComponentVtable DefaultVtable = {};
+	// To extend the lifetime of the Vtable so the worker SDK can use it
+	ComponentVtable = MakeUnique<Worker_ComponentVtable>();
+	*ComponentVtable = {};
 	ConnectionParams.component_vtable_count = 0;
-	ConnectionParams.default_component_vtable = &DefaultVtable;
+	ConnectionParams.default_component_vtable = ComponentVtable.Get();
 
 	ConnectionParams.network.connection_type = ReceptionistConfig.LinkProtocol;
 	ConnectionParams.network.use_external_ip = ReceptionistConfig.UseExternalIp;
@@ -363,7 +365,7 @@ Worker_RequestId USpatialWorkerConnection::SendDeleteEntityRequest(Worker_Entity
 
 void USpatialWorkerConnection::SendComponentUpdate(Worker_EntityId EntityId, const Worker_ComponentUpdate* ComponentUpdate)
 {
-	Worker_Alpha_UpdateParameters UpdateParameters{};
+	Worker_UpdateParameters UpdateParameters{};
 	UpdateParameters.loopback = false;
 	Worker_Alpha_Connection_SendComponentUpdate(WorkerConnection, EntityId, ComponentUpdate, &UpdateParameters);
 }
