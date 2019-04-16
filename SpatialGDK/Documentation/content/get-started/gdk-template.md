@@ -4,7 +4,7 @@
 Before setting up the SpatialOS GDK Starter Template, you need to have followed:
 
 * [Getting started: 1 - Dependencies]({{urlRoot}}/content/get-started/dependencies)
-* [Getting started: 2 - Get and build the SpatialOS Unreal Engine Fork]({{urlRoot}}/content/get-started/tutorial).
+* [Getting started: 2 - Get and build the SpatialOS Unreal Engine Fork]({{urlRoot}}/content/get-started/build-unreal-fork).
 
 If you are ready to start developing your own game with the GDK, follow the steps below. 
 
@@ -16,7 +16,7 @@ If you are ready to start developing your own game with the GDK, follow the step
 
 ### Create a new project using the Starter Template
 
-After [building the Unreal Engine fork]({{urlRoot}}/content/get-started/build-unreal-fork), in **File Explorer**, navigate to `UnrealEngine\Engine\Binaries\Win64`and double-click UE4Editor.exe to open the Unreal Editor. 
+After [building the Unreal Engine fork]({{urlRoot}}/content/get-started/build-unreal-fork), in **File Explorer**, navigate to `UnrealEngine\Engine\Binaries\Win64`and double-click `UE4Editor.exe` to open the Unreal Editor.
 
 1. In the [Project Browser](https://docs.unrealengine.com/en-us/Engine/Basics/Projects/Browser) window, select the **New Project** tab and then the **C++ tab**. 
 2. In this tab, select **SpatialOS GDK Starter**. 
@@ -24,7 +24,7 @@ After [building the Unreal Engine fork]({{urlRoot}}/content/get-started/build-un
 4. In the **Name** field, enter a project name of your choice.
 5. Select **Create Project**.
 
-**Note:** When you create a project, the Unreal Engine automatically creates a directory named after the project name you entered. This page uses `YourProject` as an example project name.
+**Note:** When you create a project, the Unreal Engine automatically creates a directory named after the project name you entered. This page uses `<YourProject>` as an example project name.
 
 ![The Unreal Engine Project Browser]({{assetRoot}}assets/set-up-template/template-project-browser.png)
 
@@ -108,11 +108,11 @@ The name should look something like `beta_randomword_anotherword_randomnumber`. 
 
 An assembly is what’s created when you run `BuildWorker.bat`. Assemblies are `.zip` files that contain all the files that your game uses when running in the cloud.
 
-**Note:** In the following commands, you must replace **`YourProject`** with the name of your project.
- 
+**Note:** In the following commands, you must replace **`<YourProject>`** with the name of your project.
+
 1. In a terminal window, navigate to your `<ProjectRoot>` directory.
-1. Build a server-worker assembly by running the following command: `Game\Plugins\UnrealGDK\SpatialGDK\Build\Scripts\BuildWorker.bat YourProjectServer Linux Development YourProject.uproject`
-1. Build a client-worker assembly by running the following command: `Game\Plugins\UnrealGDK\SpatialGDK\Build\Scripts\BuildWorker.bat YourProject Win64 Development YourProject.uproject`
+1. Build a server-worker assembly by running the following command: `Game\Plugins\UnrealGDK\SpatialGDK\Build\Scripts\BuildWorker.bat <YourProject>Server Linux Development <YourProject>.uproject`
+1. Build a client-worker assembly by running the following command: `Game\Plugins\UnrealGDK\SpatialGDK\Build\Scripts\BuildWorker.bat <YourProject> Win64 Development <YourProject>.uproject`
 
 ### Upload your game
 
@@ -135,11 +135,11 @@ When launching a cloud deployment you must provide three parameters:
 * **a launch configuration**, which declares the world and load balancing configuration.
 * **a name for your deployment**, which labels the deployment in the [Console](https://console.improbable.io).
 
-1. In a  terminal window, navigate to `<ProjectRoot>\spatial\` and run: `spatial cloud launch --snapshot=snapshots/default.snapshot <assembly_name> two_worker_test.json <deployment_name>` 
+1. In a  terminal window, navigate to `<ProjectRoot>\spatial\` and run: `spatial cloud launch --snapshot=snapshots/default.snapshot <assembly_name> one_worker_test.json <deployment_name>` 
 <br/>where `assembly_name` is the name you gave the assembly in the previous step and `deployment_name` is a name of your choice. A valid launch command would look like this:
 
 ```
-spatial cloud launch --snapshot=snapshots/default.snapshot myassembly two_worker_test.json mydeployment
+spatial cloud launch --snapshot=snapshots/default.snapshot myassembly one_worker_test.json mydeployment
 ```
 
 **Note:** This command defaults to deploying to clusters located in the US. If you’re in Europe, add the `--cluster_region=eu` flag for lower latency.
