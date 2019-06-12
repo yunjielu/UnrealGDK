@@ -20,9 +20,7 @@ standard_transient_auto_retries: &standard_transient_auto_retries
       - <<: *exit_bk_error
 
 common: &common
-  retry:
-    automatic:
-      - <<: *standard_transient_auto_retries
+  <<: *standard_transient_auto_retries
   timeout_in_minutes: 60
 
 windows_builder: &windows_builder
