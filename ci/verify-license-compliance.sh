@@ -56,7 +56,7 @@ log_group_end "whitesource-retrieve-api-key" "command"
 
 # Run the actual scan and report results to the Improbable Whitesouce console.
 log_group_start "whitesource-scan" "command"
-log_action "Running WhiteSource Unified Agent. Expect no output because it is evil."
+echo "Running WhiteSource Unified Agent. Expect no output because it is evil."
 java -jar "${WSS_JAR_FILE}" \
   -apiKey "${WSS_API_KEY}" \
   -wss.url "${WSS_URL}" \
