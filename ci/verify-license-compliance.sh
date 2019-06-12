@@ -62,6 +62,5 @@ java -jar "${WSS_JAR_FILE}" \
   -wss.url "${WSS_URL}" \
   -project "${WSS_PROJECT_NAME}" \
   -d "${SCAN_TARGET}" \
-  -scanComment "${SCAN_COMMENT}" \
-  >/dev/null 2>&1
+  -scanComment "${SCAN_COMMENT}"
 log_group_end "whitesource-scan" "command"
