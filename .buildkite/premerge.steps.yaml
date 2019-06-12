@@ -1,34 +1,65 @@
 ---
-agent_transients: &agent_transients
-  # This is designed to trap and retry failures because agent lost
-  # connection. Agent exits with -1 in this case.
+# This is designed to trap and retry failures because agent lost
+# connection. Agent exits with -1 in this case. We don't want engineers to waste their time retrying.
+exit_bk_lost_connection: &exit_bk_lost_connection
   exit_status: -1
   limit: 3
+# This is a different buildkite system error. Again, auto-retry.
+exit_bk_error: &exit_bk_error
+  exit_status: 255
+  limit: 3
+# On Windows, we are affected by https://github.com/PowerShell/Win32-OpenSSH/issues/1322
+# while that is unfixed. So, retry.
+exit_git_file_not_found: &exit_git_file_not_found
+  exit_status: 128
+  limit: 6
+standard_transient_auto_retries: &standard_transient_auto_retries
+  retry:
+    automatic:
+      - <<: *exit_bk_lost_connection
+      - <<: *exit_bk_error
 
 common: &common
+  retry:
+    automatic:
+      - <<: *standard_transient_auto_retries
+  timeout_in_minutes: 60
+
+windows_builder: &windows_builder
   agents:
     - "capable_of_building=gdk-for-unreal"
     - "environment=production"
     - "platform=windows"
     - "permission_set=builder"
     - "queue=v2-1551960839-2fc9bbe6e15deffd-------z"
-  retry:
-    automatic:
-      - <<: *agent_transients
-  timeout_in_minutes: 60
+  <<: *common
+
+# This is a platform agent, which works for running the Whitesource scan and avoids tying up a Windows agent.
+linux_builder: &linux_builder
+  agents:
+    - "capable_of_building=platform"
+    - "environment=production"
+    - "permission_set=builder"
+    - "platform=linux"
+    - "queue=v3-1559559953-cb85daa1a02ffbbf-------z"
+  <<: *common
 
 # NOTE: step labels turn into commit-status names like {org}/{repo}/{pipeline}/{step-label}, lower-case and hyphenated.
 # These are then relied on to have stable names by other things, so once named, please beware renaming has consequences.
 
 steps:
+  - label: "verify-licenses"
+    command: "./ci/verify-license-compliance.sh" # TODO: this isn't containerized, and it ought to be.
+    <<: *linux_builder
+
   - label: "build-GDK-:windows:"
     command: "powershell ./ci/setup-and-build-gdk.ps1 -target_platform Win64"
-    <<: *common # This folds the YAML named anchor into this step. Overrides, if any, should follow, not precede.
+    <<: *windows_builder # This folds the YAML named anchor into this step. Overrides, if any, should follow, not precede.
     artifact_paths:
       - "UnrealEngine/Engine/Programs/AutomationTool/Saved/Logs/*"
 
   - label: "build-GDK-:linux:"
     command: "powershell ./ci/setup-and-build-gdk.ps1 -target_platform Linux"
-    <<: *common # This folds the YAML named anchor into this step. Overrides, if any, should follow, not precede.
+    <<: *windows_builder # This folds the YAML named anchor into this step. Overrides, if any, should follow, not precede.
     artifact_paths:
       - "UnrealEngine/Engine/Programs/AutomationTool/Saved/Logs/*"
