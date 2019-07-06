@@ -465,7 +465,7 @@ void UGlobalStateManager::SetCanBeginPlay(bool bInCanBeginPlay)
 
 void UGlobalStateManager::TryTriggerBeginPlay()
 {
-	if (bCanBeginPlay && NetDriver->EntityPool != nullptr && NetDriver->EntityPool->IsReady())
+	if ( NetDriver->EntityPool != nullptr && NetDriver->EntityPool->IsReady())
 	{
 		TriggerBeginPlay();
 

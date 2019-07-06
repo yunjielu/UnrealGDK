@@ -212,16 +212,24 @@ void USpatialWorkerConnection::ConnectToReceptionist(bool bConnectAsClient)
 	ConnectionParams.component_vtable_count = 0;
 	ConnectionParams.default_component_vtable = &DefaultVtable;
 
-	ConnectionParams.network.connection_type = ReceptionistConfig.LinkProtocol;
-	ConnectionParams.network.use_external_ip = ReceptionistConfig.UseExternalIp;
+	ConnectionParams.network.connection_type = WORKER_NETWORK_CONNECTION_TYPE_TCP;
+	ConnectionParams.network.use_external_ip = true;
 	ConnectionParams.network.tcp.multiplex_level = ReceptionistConfig.TcpMultiplexLevel;
 
 	ConnectionParams.enable_dynamic_components = true;
 	// end TODO
 
+	FString ReceptionistHost = TEXT("172.16.121.74");
+	FString WorkerId = ReceptionistConfig.WorkerId;
+
+	if (!bConnectAsClient)
+	{
+		WorkerId = TEXT("UnrealWorker1");
+	}
+
 	Worker_ConnectionFuture* ConnectionFuture = Worker_ConnectAsync(
-		TCHAR_TO_UTF8(*ReceptionistConfig.ReceptionistHost), ReceptionistConfig.ReceptionistPort,
-		TCHAR_TO_UTF8(*ReceptionistConfig.WorkerId), &ConnectionParams);
+		TCHAR_TO_UTF8(*ReceptionistHost), ReceptionistConfig.ReceptionistPort,
+		TCHAR_TO_UTF8(*WorkerId), &ConnectionParams);
 
 	FinishConnecting(ConnectionFuture);
 }
