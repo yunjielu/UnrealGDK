@@ -238,4 +238,7 @@ private:
 #if !UE_BUILD_SHIPPING
 	int32 ConsiderListSize = 0;
 #endif
+
+public:
+	TMap<UFunction*, int> TimesCalledMap;
 };

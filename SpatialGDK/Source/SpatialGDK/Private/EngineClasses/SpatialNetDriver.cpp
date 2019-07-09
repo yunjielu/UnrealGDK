@@ -1062,14 +1062,14 @@ void USpatialNetDriver::ProcessRPC(AActor* Actor, UObject* SubObject, UFunction*
 		GetOrCreateSpatialActorChannel(CallingObject);
 	}
 
-	int ReliableRPCIndex = 0;
-	if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
-	{
-		if (Function->HasAnyFunctionFlags(FUNC_NetReliable) && !Function->HasAnyFunctionFlags(FUNC_NetMulticast))
-		{
-			ReliableRPCIndex = GetNextReliableRPCId(Actor, FunctionFlagsToRPCSchemaType(Function->FunctionFlags), CallingObject);
-		}
-	}
+	int ReliableRPCIndex = TimesCalledMap[Function];
+	//if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
+	//{
+	//	if (Function->HasAnyFunctionFlags(FUNC_NetReliable) && !Function->HasAnyFunctionFlags(FUNC_NetMulticast))
+	//	{
+	//		ReliableRPCIndex = GetNextReliableRPCId(Actor, FunctionFlagsToRPCSchemaType(Function->FunctionFlags), CallingObject);
+	//	}
+	//}
 
 	TSet<TWeakObjectPtr<const UObject>> UnresolvedObjects;
 	RPCPayload Payload = Sender->CreateRPCPayloadFromParams(CallingObject, Function, ReliableRPCIndex, Parameters, UnresolvedObjects);
@@ -1246,6 +1246,18 @@ void USpatialNetDriver::ProcessRemoteFunction(
 	FFrame* Stack,
 	UObject* SubObject)
 {
+	int TimesCalled = TimesCalledMap.FindRef(Function) + 1;
+	TimesCalledMap.Add(Function, TimesCalled);
+
+	UE_LOG(LogTemp, Log, TEXT("%s>>>%s%s %.2f %d PRF: %s %s"),
+		IsServer() ? TEXT("S") : TEXT("C"),
+		(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
+		(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
+		GetWorld()->GetTimeSeconds(),
+		TimesCalled,
+		*Actor->GetName(),
+		*Function->GetName());
+
 	if (Connection == nullptr)
 	{
 		UE_LOG(LogSpatialOSNetDriver, Error, TEXT("Attempted to call ProcessRemoteFunction before connection was established"));

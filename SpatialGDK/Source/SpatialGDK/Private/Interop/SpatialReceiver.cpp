@@ -1445,9 +1445,9 @@ bool USpatialReceiver::ApplyRPC(UObject* TargetObject, UFunction* Function, cons
 	FSpatialNetBitReader PayloadReader(PackageMap, PayloadCopy.PayloadData.GetData(), PayloadCopy.CountDataBits(), UnresolvedRefs);
 
 	int ReliableRPCId = 0;
-	if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
+	//if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
 	{
-		if (Function->HasAnyFunctionFlags(FUNC_NetReliable) && !Function->HasAnyFunctionFlags(FUNC_NetMulticast))
+		//if (Function->HasAnyFunctionFlags(FUNC_NetReliable) && !Function->HasAnyFunctionFlags(FUNC_NetMulticast))
 		{
 			PayloadReader << ReliableRPCId;
 		}
@@ -1472,6 +1472,18 @@ bool USpatialReceiver::ApplyRPC(UObject* TargetObject, UFunction* Function, cons
 			}
 		}
 
+		int TimesCalled = NetDriver->TimesCalledMap.FindRef(Function) + 1;
+		NetDriver->TimesCalledMap.Add(Function, TimesCalled);
+
+		UE_LOG(LogTemp, Log, TEXT("%s<<<%s%s %.2f %d:%d AR: %s %s"),
+			NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
+			(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
+			(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
+			NetDriver->GetWorld()->GetTimeSeconds(),
+			ReliableRPCId,
+			TimesCalled,
+			*(TargetObject->IsA<AActor>() ? TargetObject : TargetObject->GetOuter())->GetName(),
+			*Function->GetName());
 		TargetObject->ProcessEvent(Function, Parms);
 		bApplied = true;
 	}

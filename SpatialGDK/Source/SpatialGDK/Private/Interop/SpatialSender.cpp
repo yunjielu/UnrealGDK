@@ -1094,9 +1094,9 @@ FSpatialNetBitWriter USpatialSender::PackRPCDataToSpatialNetBitWriter(UFunction*
 {
 	FSpatialNetBitWriter PayloadWriter(PackageMap, UnresolvedObjects);
 
-	if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
+	//if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
 	{
-		if (Function->HasAnyFunctionFlags(FUNC_NetReliable) && !Function->HasAnyFunctionFlags(FUNC_NetMulticast))
+		//if (Function->HasAnyFunctionFlags(FUNC_NetReliable) && !Function->HasAnyFunctionFlags(FUNC_NetMulticast))
 		{
 			PayloadWriter << ReliableRPCId;
 		}
