@@ -1206,6 +1206,20 @@ void USpatialReceiver::HandleRPC(const Worker_ComponentUpdateOp& Op)
 			}
 		}
 
+		TSet<FUnrealObjectRef> UnresolvedRefs;
+		FSpatialNetBitReader Reader(PackageMap, Payload.PayloadData.GetData(), Payload.CountDataBits(), UnresolvedRefs);
+
+		int ReliableRPCId = 0;
+		Reader << ReliableRPCId;
+
+		// TODO: Log when RPC component update is received
+		UE_LOG(LogTemp, Log, TEXT("%s<<< %.2f %d COMP %lld %d"),
+			NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
+			NetDriver->GetWorld()->GetTimeSeconds(),
+			ReliableRPCId,
+			EntityId,
+			Payload.Index);
+
 		FPendingRPCParamsPtr Params = MakeUnique<FPendingRPCParams>(ObjectRef, MoveTemp(Payload));
 		if(UObject* TargetObject = PackageMap->GetObjectFromUnrealObjectRef(ObjectRef).Get())
 		{
@@ -1441,8 +1455,8 @@ bool USpatialReceiver::ApplyRPC(UObject* TargetObject, UFunction* Function, cons
 
 	TSet<FUnrealObjectRef> UnresolvedRefs;
 
-	RPCPayload PayloadCopy = Payload;
-	FSpatialNetBitReader PayloadReader(PackageMap, PayloadCopy.PayloadData.GetData(), PayloadCopy.CountDataBits(), UnresolvedRefs);
+	//RPCPayload PayloadCopy = Payload;
+	FSpatialNetBitReader PayloadReader(PackageMap, const_cast<uint8*>(Payload.PayloadData.GetData()), Payload.CountDataBits(), UnresolvedRefs);
 
 	int ReliableRPCId = 0;
 	//if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
@@ -1475,13 +1489,15 @@ bool USpatialReceiver::ApplyRPC(UObject* TargetObject, UFunction* Function, cons
 		int TimesCalled = NetDriver->TimesCalledMap.FindRef(Function) + 1;
 		NetDriver->TimesCalledMap.Add(Function, TimesCalled);
 
-		UE_LOG(LogTemp, Log, TEXT("%s<<<%s%s %.2f %d:%d AR: %s %s"),
+		UE_LOG(LogTemp, Log, TEXT("%s<<<%s%s %.2f %d:%d AR: %lld %d %s %s"),
 			NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
 			(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
 			(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
 			NetDriver->GetWorld()->GetTimeSeconds(),
 			ReliableRPCId,
 			TimesCalled,
+			PackageMap->GetEntityIdFromObject(TargetObject),
+			Payload.Index,
 			*(TargetObject->IsA<AActor>() ? TargetObject : TargetObject->GetOuter())->GetName(),
 			*Function->GetName());
 		TargetObject->ProcessEvent(Function, Parms);

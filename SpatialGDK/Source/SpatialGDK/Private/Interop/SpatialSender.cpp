@@ -629,6 +629,16 @@ void USpatialSender::FlushPackedUnreliableRPCs()
 			Schema_AddUint32(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_RPC_INDEX_ID, RPC.Index);
 			SpatialGDK::AddBytesToSchema(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_RPC_PAYLOAD_ID, RPC.Data.GetData(), RPC.Data.Num());
 			Schema_AddEntityId(EventData, SpatialConstants::UNREAL_PACKED_RPC_PAYLOAD_ENTITY_ID, RPC.Entity);
+
+			UE_LOG(LogTemp, Log, TEXT("%s>>>%s%s %.2f %d COMP: %lld %d %s"),
+				NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
+				(RPC.Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
+				(RPC.Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (RPC.Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
+				NetDriver->GetWorld()->GetTimeSeconds(),
+				RPC.TimesCalled,
+				RPC.Entity,
+				RPC.Index,
+				*RPC.Function->GetName());
 		}
 
 		Connection->SendComponentUpdate(PlayerControllerEntityId, &ComponentUpdate);
@@ -859,6 +869,15 @@ bool USpatialSender::SendRPC(const FPendingRPCParams& Params)
 			{
 				return false;
 			}
+
+			UE_LOG(LogTemp, Log, TEXT("%s>>>%s%s %.2f %d COMP: %s %s"),
+				NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
+				(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
+				(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
+				NetDriver->GetWorld()->GetTimeSeconds(),
+				Params.ReliableRPCIndex,
+				*TargetObject->GetName(),
+				*Function->GetName());
 
 			Connection->SendComponentUpdate(EntityId, &ComponentUpdate);
 #if !UE_BUILD_SHIPPING
@@ -1215,6 +1234,10 @@ bool USpatialSender::AddPendingUnreliableRPC(UObject* TargetObject, const FPendi
 	RPC.Data.SetNumUninitialized(Parameters.Payload.PayloadData.Num());
 	FMemory::Memcpy(RPC.Data.GetData(), Parameters.Payload.PayloadData.GetData(), Parameters.Payload.PayloadData.Num());
 	RPC.Entity = TargetObjectRef.Entity;
+
+	RPC.Function = Function;
+	RPC.TimesCalled = Parameters.ReliableRPCIndex;
+
 	UnreliableRPCs.FindOrAdd(ControllerObjectRef.Entity).Emplace(MoveTemp(RPC));
 	return true;
 }

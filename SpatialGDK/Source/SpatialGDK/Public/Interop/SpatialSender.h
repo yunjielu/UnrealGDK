@@ -52,6 +52,9 @@ struct FPendingUnreliableRPC
 	Schema_FieldId Index;
 	TArray<uint8> Data;
 	Schema_EntityId Entity;
+
+	UFunction* Function;
+	int TimesCalled;
 };
 
 // TODO: Clear TMap entries when USpatialActorChannel gets deleted - UNR:100
