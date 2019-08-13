@@ -25,7 +25,7 @@ public:
 	void Init(USpatialNetDriver* NetDriver);
 
 	Worker_EntityId AllocateEntityIdAndResolveActor(AActor* Actor);
-	FNetworkGUID TryResolveObjectAsEntity(UObject* Value);
+	virtual FNetworkGUID TryResolveObjectAsEntity(UObject* Value);
 
 	bool IsEntityIdPendingCreation(Worker_EntityId EntityId) const;
 	void RemovePendingCreationEntityId(Worker_EntityId EntityId);
@@ -40,10 +40,10 @@ public:
 	// the unintended registering of objects when looking them up with static paths.
 	void UnregisterActorObjectRefOnly(const FUnrealObjectRef& ObjectRef);
 
-	FNetworkGUID ResolveStablyNamedObject(UObject* Object);
+	virtual FNetworkGUID ResolveStablyNamedObject(UObject* Object);
 	
-	FUnrealObjectRef GetUnrealObjectRefFromNetGUID(const FNetworkGUID& NetGUID) const;
-	FNetworkGUID GetNetGUIDFromUnrealObjectRef(const FUnrealObjectRef& ObjectRef) const;
+	virtual FUnrealObjectRef GetUnrealObjectRefFromNetGUID(const FNetworkGUID& NetGUID) const;
+	virtual FNetworkGUID GetNetGUIDFromUnrealObjectRef(const FUnrealObjectRef& ObjectRef) const;
 	FNetworkGUID GetNetGUIDFromEntityId(const Worker_EntityId& EntityId) const;
 
 	TWeakObjectPtr<UObject> GetObjectFromUnrealObjectRef(const FUnrealObjectRef& ObjectRef);
@@ -51,7 +51,7 @@ public:
 	FUnrealObjectRef GetUnrealObjectRefFromObject(UObject* Object);
 	Worker_EntityId GetEntityIdFromObject(const UObject* Object);
 
-	AActor* GetSingletonByClassRef(const FUnrealObjectRef& SingletonClassRef);
+	virtual AActor* GetSingletonByClassRef(const FUnrealObjectRef& SingletonClassRef);
 
 	// Expose FNetGUIDCache::CanClientLoadObject so we can include this info with UnrealObjectRef.
 	bool CanClientLoadObject(UObject* Object);
