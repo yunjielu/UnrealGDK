@@ -85,12 +85,6 @@ public:
 	void SendCreateEntityRequest(USpatialActorChannel* Channel);
 	void SendDeleteEntityRequest(Worker_EntityId EntityId);
 
-	void SendRequestToClearRPCsOnEntityCreation(Worker_EntityId EntityId);
-	void ClearRPCsOnEntityCreation(Worker_EntityId EntityId);
-
-	void SendClientEndpointReadyUpdate(Worker_EntityId EntityId);
-	void SendServerEndpointReadyUpdate(Worker_EntityId EntityId);
-
 	void EnqueueRetryRPC(TSharedRef<FReliableRPCForRetry> RetryRPC);
 	void FlushRetryRPCs();
 	void RetryReliableRPC(TSharedRef<FReliableRPCForRetry> RetryRPC);
@@ -112,6 +106,9 @@ public:
 	// Creates an entity authoritative on this server worker, ensuring it will be able to receive updates for the GSM.
 	void CreateServerWorkerEntity(int AttemptCounter = 1);
 
+	void UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 LastExecutedRPCId);
+	void ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecutedRPCId, ESchemaComponentType RPCType);
+
 private:
 	// Actor Lifecycle
 	Worker_RequestId CreateEntity(USpatialActorChannel* Channel);
@@ -122,7 +119,7 @@ private:
 
 	Worker_CommandRequest CreateRPCCommandRequest(UObject* TargetObject, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId CommandIndex, Worker_EntityId& OutEntityId);
 	Worker_CommandRequest CreateRetryRPCCommandRequest(const FReliableRPCForRetry& RPC, uint32 TargetObjectOffset);
-	Worker_ComponentUpdate CreateRPCEventUpdate(UObject* TargetObject, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId EventIndext);
+	Worker_ComponentUpdate CreateRPCUpdate(UObject* TargetObject, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId RingBufferRPCId);
 	ERPCResult AddPendingRPC(UObject* TargetObject, UFunction* Function, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId RPCIndext);
 
 	TArray<Worker_InterestOverride> CreateComponentInterestForActor(USpatialActorChannel* Channel, bool bIsNetOwned);
@@ -163,4 +160,8 @@ private:
 	FChannelsToUpdatePosition ChannelsToUpdatePosition;
 
 	TMap<Worker_EntityId_Key, TArray<FPendingRPC>> RPCsToPack;
+
+	// TODO: Store this in actor channel? Static component view?
+	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastClearedRPCIdMap;
+	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastSentRPCIdMap;
 };

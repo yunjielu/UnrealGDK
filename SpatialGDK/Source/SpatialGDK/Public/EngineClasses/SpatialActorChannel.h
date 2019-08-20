@@ -152,7 +152,6 @@ public:
 	FORCEINLINE void MarkInterestDirty() { bInterestDirty = true; }
 	FORCEINLINE bool GetInterestDirty() const { return bInterestDirty; }
 
-	bool IsListening() const;
 	const FClassInfo* TryResolveNewDynamicSubobjectAndGetClassInfo(UObject* Object);
 
 protected:

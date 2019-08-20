@@ -128,8 +128,6 @@ public:
 	void OnComponentUpdate(const Worker_ComponentUpdateOp& Op);
 	void HandleRPC(const Worker_ComponentUpdateOp& Op);
 
-	void ProcessRPCEventField(Worker_EntityId EntityId, const Worker_ComponentUpdateOp &Op, const Worker_ComponentId RPCEndpointComponentId, bool bPacked);
-
 	void OnCommandRequest(const Worker_CommandRequestOp& Op);
 	void OnCommandResponse(const Worker_CommandResponseOp& Op);
 
@@ -257,4 +255,7 @@ private:
 	TMap<Worker_EntityId_Key, TWeakObjectPtr<USpatialNetConnection>> AuthorityPlayerControllerConnectionMap;
 
 	TMap<TPair<Worker_EntityId_Key, Worker_ComponentId>, PendingAddComponentWrapper> PendingDynamicSubobjectComponents;
+
+	// TODO: store this in actor channel? static component view?
+	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastHandledRPCIdMap;
 };

@@ -550,26 +550,6 @@ void USpatialActorChannel::DynamicallyAttachSubobject(UObject* Object)
 	}
 }
 
-bool USpatialActorChannel::IsListening() const
-{
-	if (NetDriver->IsServer())
-	{
-		if (SpatialGDK::ClientRPCEndpoint* Endpoint = NetDriver->StaticComponentView->GetComponentData<SpatialGDK::ClientRPCEndpoint>(EntityId))
-		{
-			return Endpoint->bReady;
-		}
-	}
-	else
-	{
-		if (SpatialGDK::ServerRPCEndpoint* Endpoint = NetDriver->StaticComponentView->GetComponentData<SpatialGDK::ServerRPCEndpoint>(EntityId))
-		{
-			return Endpoint->bReady;
-		}
-	}
-
-	return false;
-}
-
 const FClassInfo* USpatialActorChannel::TryResolveNewDynamicSubobjectAndGetClassInfo(UObject* Object)
 {
 	const FClassInfo* Info = nullptr;

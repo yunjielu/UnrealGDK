@@ -118,7 +118,6 @@ void USpatialReceiver::OnAddComponent(const Worker_AddComponentOp& Op)
 	case SpatialConstants::GSM_SHUTDOWN_COMPONENT_ID:
 	case SpatialConstants::HEARTBEAT_COMPONENT_ID:
 	case SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID:
-	case SpatialConstants::RPCS_ON_ENTITY_CREATION_ID:
 	case SpatialConstants::DEBUG_METRICS_COMPONENT_ID:
 	case SpatialConstants::ALWAYS_RELEVANT_COMPONENT_ID:
 	case SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID:
@@ -287,15 +286,8 @@ void USpatialReceiver::HandleActorAuthority(const Worker_AuthorityChangeOp& Op)
 		&& Op.authority == WORKER_AUTHORITY_AUTHORITATIVE)
 	{
 		check(!NetDriver->IsServer());
-		if (RPCsOnEntityCreation* QueuedRPCs = StaticComponentView->GetComponentData<RPCsOnEntityCreation>(Op.entity_id))
-		{
-			if (QueuedRPCs->HasRPCPayloadData())
-			{
-				ProcessQueuedActorRPCsOnEntityCreation(Actor, *QueuedRPCs);
-			}
 
-			Sender->SendRequestToClearRPCsOnEntityCreation(Op.entity_id);
-		}
+		// Start executing client RPCs
 	}
 
 	if (APlayerController* PlayerController = Cast<APlayerController>(Actor))
@@ -395,18 +387,6 @@ void USpatialReceiver::HandleActorAuthority(const Worker_AuthorityChangeOp& Op)
 			{
 				Actor->Role = (Op.authority == WORKER_AUTHORITY_AUTHORITATIVE) ? ROLE_AutonomousProxy : ROLE_SimulatedProxy;
 			}
-		}
-	}
-
-	if (Op.authority == WORKER_AUTHORITY_AUTHORITATIVE)
-	{
-		if (Op.component_id == SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID)
-		{
-			Sender->SendClientEndpointReadyUpdate(Op.entity_id);
-		}
-		if (Op.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID)
-		{
-			Sender->SendServerEndpointReadyUpdate(Op.entity_id);
 		}
 	}
 
@@ -1073,7 +1053,6 @@ void USpatialReceiver::OnComponentUpdate(const Worker_ComponentUpdateOp& Op)
 	case SpatialConstants::SINGLETON_COMPONENT_ID:
 	case SpatialConstants::UNREAL_METADATA_COMPONENT_ID:
 	case SpatialConstants::NOT_STREAMED_COMPONENT_ID:
-	case SpatialConstants::RPCS_ON_ENTITY_CREATION_ID:
 	case SpatialConstants::DEBUG_METRICS_COMPONENT_ID:
 	case SpatialConstants::ALWAYS_RELEVANT_COMPONENT_ID:
 		UE_LOG(LogSpatialReceiver, Verbose, TEXT("Entity: %d Component: %d - Skipping because this is hand-written Spatial component"), Op.entity_id, Op.update.component_id);
@@ -1174,62 +1153,67 @@ void USpatialReceiver::HandleRPC(const Worker_ComponentUpdateOp& Op)
 		? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 
 	// Multicast RPCs should be executed by whoever receives them.
-	if (Op.update.component_id != SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID)
+	const bool bIsNetMulticast = Op.update.component_id != SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID;
+	if (bIsNetMulticast)
 	{
-		if (StaticComponentView->GetAuthority(Op.entity_id, RPCEndpointComponentId) != WORKER_AUTHORITY_AUTHORITATIVE)
+		if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
 		{
 			return;
 		}
 	}
 
-	// Always process unpacked RPCs since some cannot be packed.
-	ProcessRPCEventField(EntityId, Op, RPCEndpointComponentId, /* bPacked */ false);
+	ESchemaComponentType RPCType = bIsNetMulticast ? SCHEMA_NetMulticastRPC : NetDriver->IsServer() ? SCHEMA_ClientReliableRPC : SCHEMA_ServerReliableRPC;
 
-	if (GetDefault<USpatialGDKSettings>()->bPackRPCs)
+	Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(Op.update);
+	// New RPCs
+	if (Schema_GetUint32Count(FieldsObject, 1) > 0)
 	{
-		// Only process packed RPCs if packing is enabled
-		ProcessRPCEventField(EntityId, Op, RPCEndpointComponentId, /* bPacked */ true);
-	}
-}
+		uint32 LastSentRPCId = Schema_GetUint32(FieldsObject, 1);
 
-void USpatialReceiver::ProcessRPCEventField(Worker_EntityId EntityId, const Worker_ComponentUpdateOp& Op, Worker_ComponentId RPCEndpointComponentId, bool bPacked)
-{
-	Schema_Object* EventsObject = Schema_GetComponentUpdateEvents(Op.update.schema_type);
-	const Schema_FieldId EventId = bPacked ? SpatialConstants::UNREAL_RPC_ENDPOINT_PACKED_EVENT_ID : SpatialConstants::UNREAL_RPC_ENDPOINT_EVENT_ID;
-	uint32 EventCount = Schema_GetObjectCount(EventsObject, EventId);
-
-	for (uint32 i = 0; i < EventCount; i++)
-	{
-		Schema_Object* EventData = Schema_IndexObject(EventsObject, EventId, i);
-
-		RPCPayload Payload(EventData);
-
-		FUnrealObjectRef ObjectRef(EntityId, Payload.Offset);
-
-		if (bPacked)
+		uint32& LastHandledRPCId = LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
+		if (LastSentRPCId > LastHandledRPCId + 10)
 		{
-			// When packing unreliable RPCs into one update, they also always go through the PlayerController.
-			// This means we need to retrieve the actual target Entity ID from the payload.
-			if (Op.update.component_id == SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID ||
-				Op.update.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID)
+			// We missed some RPCs, should only be possible for multicast
+			ensure(bIsNetMulticast);
+			LastHandledRPCId = LastSentRPCId - 10;
+		}
+
+		for (uint32 RPCIndex = LastHandledRPCId + 1; RPCIndex <= LastSentRPCId; RPCIndex++)
+		{
+			// Apply RPC
+			Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % 10) + 2;
+			if (Schema_GetObjectCount(FieldsObject, RingBufferFieldId) > 0)
 			{
-				ObjectRef.Entity = Schema_GetEntityId(EventData, SpatialConstants::UNREAL_PACKED_RPC_PAYLOAD_ENTITY_ID);
+				RPCPayload Payload(Schema_GetObject(FieldsObject, RingBufferFieldId));
+				FUnrealObjectRef ObjectRef(EntityId, Payload.Offset);
 
-
-				// In a zoned multiworker scenario we might not have gained authority over the current entity in this bundle in time
-				// before processing so don't ApplyRPCs to an entity that we don't have authority over.
-				if (StaticComponentView->GetAuthority(ObjectRef.Entity, RPCEndpointComponentId) != WORKER_AUTHORITY_AUTHORITATIVE)
+				if (PackageMap->GetObjectFromUnrealObjectRef(ObjectRef).IsValid())
 				{
-					continue;
+					ProcessOrQueueIncomingRPC(ObjectRef, MoveTemp(Payload));
 				}
+			}
+			else
+			{
+				// Multicast RPC expired?
+				ensure(bIsNetMulticast);
 			}
 		}
 
-		if (UObject* TargetObject = PackageMap->GetObjectFromUnrealObjectRef(ObjectRef).Get())
-		{
-			ProcessOrQueueIncomingRPC(ObjectRef, MoveTemp(Payload));
-		}
+		LastHandledRPCId = LastSentRPCId;
 
+		if (bIsNetMulticast)
+		{
+			// Send component update to the opposite comp updating executed index
+			Sender->UpdateLastExecutedRPC(EntityId, LastHandledRPCId);
+		}
+	}
+
+	// Executed RPCs acked
+	if (bIsNetMulticast && Schema_GetUint32Count(FieldsObject, 12) > 0)
+	{
+		uint32 LastExecutedRPCId = Schema_GetUint32(FieldsObject, 12);
+
+		Sender->ClearSentRPCs(EntityId, LastExecutedRPCId, RPCType);
 	}
 }
 
@@ -1246,12 +1230,6 @@ void USpatialReceiver::OnCommandRequest(const Worker_CommandRequestOp& Op)
 		// 2. The attribute of the specific worker that sent the request
 		// We want to give authority to the specific worker, so we grab the second element from the attribute set.
 		NetDriver->PlayerSpawner->ReceivePlayerSpawnRequest(Payload, Op.caller_attribute_set.attributes[1], Op.request_id);
-		return;
-	}
-	else if (Op.request.component_id == SpatialConstants::RPCS_ON_ENTITY_CREATION_ID && CommandIndex == SpatialConstants::CLEAR_RPCS_ON_ENTITY_CREATION)
-	{
-		Sender->ClearRPCsOnEntityCreation(Op.entity_id);
-		Sender->SendEmptyCommandResponse(Op.request.component_id, CommandIndex, Op.request_id);
 		return;
 	}
 #if WITH_EDITOR

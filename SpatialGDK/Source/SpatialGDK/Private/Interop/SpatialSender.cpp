@@ -124,10 +124,10 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentWriteAcl.Add(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID, AuthoritativeWorkerRequirementSet);
 	ComponentWriteAcl.Add(SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID, OwningClientOnlyRequirementSet);
 
-	// If there are pending RPCs, add this component.
+	// If there are pending RPCs, add them onto the endpoint.
 	if (OutgoingOnCreateEntityRPCs.Contains(Actor))
 	{
-		ComponentWriteAcl.Add(SpatialConstants::RPCS_ON_ENTITY_CREATION_ID, AuthoritativeWorkerRequirementSet);
+		// TODO
 	}
 
 	// If Actor is a PlayerController, add the heartbeat component.
@@ -499,6 +499,49 @@ void USpatialSender::CreateServerWorkerEntity(int AttemptCounter)
 	Receiver->AddCreateEntityDelegate(RequestId, OnCreateWorkerEntityResponse);
 }
 
+void USpatialSender::UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 LastExecutedRPCId)
+{
+	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
+	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
+	{
+		// Shouldn't happen?
+		return;
+	}
+
+	Worker_ComponentUpdate ComponentUpdate = {};
+	ComponentUpdate.component_id = RPCEndpointComponentId;
+	ComponentUpdate.schema_type = Schema_CreateComponentUpdate(RPCEndpointComponentId);
+	Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(ComponentUpdate.schema_type);
+
+	Schema_AddUint32(FieldsObject, 12, LastExecutedRPCId);
+
+	Connection->SendComponentUpdate(EntityId, &ComponentUpdate);
+}
+
+void USpatialSender::ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecutedRPCId, ESchemaComponentType RPCType)
+{
+	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
+	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
+	{
+		// Shouldn't happen?
+		return;
+	}
+
+	Worker_ComponentUpdate ComponentUpdate = {};
+	ComponentUpdate.component_id = RPCEndpointComponentId;
+	ComponentUpdate.schema_type = Schema_CreateComponentUpdate(RPCEndpointComponentId);
+
+	uint32& LastClearedRPCId = LastClearedRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
+	for (uint32 RPCIndex = LastClearedRPCId + 1; RPCIndex <= LastExecutedRPCId; RPCIndex++)
+	{
+		Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % 10) + 2;
+		Schema_AddComponentUpdateClearedField(ComponentUpdate.schema_type, RingBufferFieldId);
+	}
+	LastClearedRPCId = LastExecutedRPCId;
+
+	Connection->SendComponentUpdate(EntityId, &ComponentUpdate);
+}
+
 void USpatialSender::SendComponentUpdates(UObject* Object, const FClassInfo& Info, USpatialActorChannel* Channel, const FRepChangeState* RepChanges, const FHandoverChangeState* HandoverChanges)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpatialSenderSendComponentUpdates);
@@ -543,39 +586,39 @@ void USpatialSender::ProcessUpdatesQueuedUntilAuthority(Worker_EntityId EntityId
 
 void USpatialSender::FlushPackedRPCs()
 {
-	if (RPCsToPack.Num() == 0)
-	{
-		return;
-	}
-
-	// TODO: This could be further optimized for the case when there's only 1 RPC to be sent during this frame
-	// by sending it directly to the corresponding entity, without including the EntityId in the payload - UNR-1563.
-	for (const auto& It : RPCsToPack)
-	{
-		Worker_EntityId PlayerControllerEntityId = It.Key;
-		const TArray<FPendingRPC>& PendingRPCArray = It.Value;
-
-		Worker_ComponentUpdate ComponentUpdate = {};
-
-		Worker_ComponentId ComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
-		ComponentUpdate.component_id = ComponentId;
-		ComponentUpdate.schema_type = Schema_CreateComponentUpdate(ComponentId);
-		Schema_Object* EventsObject = Schema_GetComponentUpdateEvents(ComponentUpdate.schema_type);
-
-		for (const FPendingRPC& RPC : PendingRPCArray)
-		{
-			Schema_Object* EventData = Schema_AddObject(EventsObject, SpatialConstants::UNREAL_RPC_ENDPOINT_PACKED_EVENT_ID);
-
-			Schema_AddUint32(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_OFFSET_ID, RPC.Offset);
-			Schema_AddUint32(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_RPC_INDEX_ID, RPC.Index);
-			SpatialGDK::AddBytesToSchema(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_RPC_PAYLOAD_ID, RPC.Data.GetData(), RPC.Data.Num());
-			Schema_AddEntityId(EventData, SpatialConstants::UNREAL_PACKED_RPC_PAYLOAD_ENTITY_ID, RPC.Entity);
-		}
-
-		Connection->SendComponentUpdate(PlayerControllerEntityId, &ComponentUpdate);
-	}
-
-	RPCsToPack.Empty();
+// 	if (RPCsToPack.Num() == 0)
+// 	{
+// 		return;
+// 	}
+// 
+// 	// TODO: This could be further optimized for the case when there's only 1 RPC to be sent during this frame
+// 	// by sending it directly to the corresponding entity, without including the EntityId in the payload - UNR-1563.
+// 	for (const auto& It : RPCsToPack)
+// 	{
+// 		Worker_EntityId PlayerControllerEntityId = It.Key;
+// 		const TArray<FPendingRPC>& PendingRPCArray = It.Value;
+// 
+// 		Worker_ComponentUpdate ComponentUpdate = {};
+// 
+// 		Worker_ComponentId ComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
+// 		ComponentUpdate.component_id = ComponentId;
+// 		ComponentUpdate.schema_type = Schema_CreateComponentUpdate(ComponentId);
+// 		Schema_Object* EventsObject = Schema_GetComponentUpdateEvents(ComponentUpdate.schema_type);
+// 
+// 		for (const FPendingRPC& RPC : PendingRPCArray)
+// 		{
+// 			Schema_Object* EventData = Schema_AddObject(EventsObject, SpatialConstants::UNREAL_RPC_ENDPOINT_PACKED_EVENT_ID);
+// 
+// 			Schema_AddUint32(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_OFFSET_ID, RPC.Offset);
+// 			Schema_AddUint32(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_RPC_INDEX_ID, RPC.Index);
+// 			SpatialGDK::AddBytesToSchema(EventData, SpatialConstants::UNREAL_RPC_PAYLOAD_RPC_PAYLOAD_ID, RPC.Data.GetData(), RPC.Data.Num());
+// 			Schema_AddEntityId(EventData, SpatialConstants::UNREAL_PACKED_RPC_PAYLOAD_ENTITY_ID, RPC.Entity);
+// 		}
+// 
+// 		Connection->SendComponentUpdate(PlayerControllerEntityId, &ComponentUpdate);
+// 	}
+// 
+// 	RPCsToPack.Empty();
 }
 
 void FillComponentInterests(const FClassInfo& Info, bool bNetOwned, TArray<Worker_InterestOverride>& ComponentInterest)
@@ -758,20 +801,16 @@ ERPCResult USpatialSender::SendRPCInternal(UObject* TargetObject, UFunction* Fun
 			return ERPCResult::UnresolvedTargetObject;
 		}
 
-		if (RPCInfo.Type != SCHEMA_NetMulticastRPC && !Channel->IsListening())
-		{
-			// If the Entity endpoint is not yet ready to receive RPCs -
-			// treat the corresponding object as unresolved and queue RPC
-			// However, it doesn't matter in case of Multicast
-			return ERPCResult::SpatialActorChannelNotListening;
-		}
+		////////////////////////////////
+		// If less than 10 RPCs on the queue, add one on top
+		// Else queue it up
 
 		EntityId = TargetObjectRef.Entity;
 		check(EntityId != SpatialConstants::INVALID_ENTITY_ID);
 
 		Worker_ComponentId ComponentId = SchemaComponentTypeToWorkerComponentId(RPCInfo.Type);
 
-		bool bCanPackRPC = GetDefault<USpatialGDKSettings>()->bPackRPCs;
+		bool bCanPackRPC = false;// GetDefault<USpatialGDKSettings>()->bPackRPCs;
 		if (bCanPackRPC && RPCInfo.Type == SCHEMA_NetMulticastRPC)
 		{
 			bCanPackRPC = false;
@@ -817,7 +856,26 @@ ERPCResult USpatialSender::SendRPCInternal(UObject* TargetObject, UFunction* Fun
 				return ERPCResult::NoAuthority;
 			}
 
-			Worker_ComponentUpdate ComponentUpdate = CreateRPCEventUpdate(TargetObject, Payload, ComponentId, RPCInfo.Index);
+			ESchemaComponentType RPCType =	RPCInfo.Type == SCHEMA_ServerUnreliableRPC ? SCHEMA_ServerReliableRPC :
+											RPCInfo.Type == SCHEMA_ClientUnreliableRPC : SCHEMA_ClientReliableRPC :
+											RPCInfo.Type;
+
+			uint32& LastSentRPCId = LastSentRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
+			uint32& LastClearedRPCId = LastClearedRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
+
+			uint32 NextRPCId = LastSentRPCId + 1;
+			if (NextRPCId > LastClearedRPCId + 10)
+			{
+				// TODO: RPC capacity filled, need to queue this
+				checkNoEntry();
+			}
+
+			Schema_FieldId RingBufferRPCId = (NextRPCId - 1) % 10 + 2;
+
+			Worker_ComponentUpdate ComponentUpdate = CreateRPCUpdate(TargetObject, Payload, ComponentId, RingBufferRPCId);
+			LastSentRPCId = NextRPCId;
+			Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(ComponentUpdate.schema_type);
+			Schema_AddUint32(FieldsObject, 1, LastSentRPCId);
 
 			Connection->SendComponentUpdate(EntityId, &ComponentUpdate);
 #if !UE_BUILD_SHIPPING
@@ -905,35 +963,6 @@ void USpatialSender::SendDeleteEntityRequest(Worker_EntityId EntityId)
 	Connection->SendDeleteEntityRequest(EntityId);
 }
 
-void USpatialSender::SendRequestToClearRPCsOnEntityCreation(Worker_EntityId EntityId)
-{
-	Worker_CommandRequest CommandRequest = RPCsOnEntityCreation::CreateClearFieldsCommandRequest();
-	NetDriver->Connection->SendCommandRequest(EntityId, &CommandRequest, SpatialConstants::CLEAR_RPCS_ON_ENTITY_CREATION);
-}
-
-void USpatialSender::ClearRPCsOnEntityCreation(Worker_EntityId EntityId)
-{
-	check(NetDriver->IsServer());
-	Worker_ComponentUpdate Update = RPCsOnEntityCreation::CreateClearFieldsUpdate();
-	NetDriver->Connection->SendComponentUpdate(EntityId, &Update);
-}
-
-void USpatialSender::SendClientEndpointReadyUpdate(Worker_EntityId EntityId)
-{
-	ClientRPCEndpoint Endpoint;
-	Endpoint.bReady = true;
-	Worker_ComponentUpdate Update = Endpoint.CreateRPCEndpointUpdate();
-	NetDriver->Connection->SendComponentUpdate(EntityId, &Update);
-}
-
-void USpatialSender::SendServerEndpointReadyUpdate(Worker_EntityId EntityId)
-{
-	ServerRPCEndpoint Endpoint;
-	Endpoint.bReady = true;
-	Worker_ComponentUpdate Update = Endpoint.CreateRPCEndpointUpdate();
-	NetDriver->Connection->SendComponentUpdate(EntityId, &Update);
-}
-
 void USpatialSender::ProcessOrQueueOutgoingRPC(const FUnrealObjectRef& InTargetObjectRef, SpatialGDK::RPCPayload&& InPayload)
 {
 	TWeakObjectPtr<UObject> TargetObjectWeakPtr = PackageMap->GetObjectFromUnrealObjectRef(InTargetObjectRef);
@@ -1001,22 +1030,21 @@ Worker_CommandRequest USpatialSender::CreateRetryRPCCommandRequest(const FReliab
 	return CommandRequest;
 }
 
-Worker_ComponentUpdate USpatialSender::CreateRPCEventUpdate(UObject* TargetObject, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId EventIndex)
+Worker_ComponentUpdate USpatialSender::CreateRPCUpdate(UObject* TargetObject, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId RingBufferRPCId)
 {
 	Worker_ComponentUpdate ComponentUpdate = {};
 
 	ComponentUpdate.component_id = ComponentId;
 	ComponentUpdate.schema_type = Schema_CreateComponentUpdate(ComponentId);
-	Schema_Object* EventsObject = Schema_GetComponentUpdateEvents(ComponentUpdate.schema_type);
-	Schema_Object* EventData = Schema_AddObject(EventsObject, SpatialConstants::UNREAL_RPC_ENDPOINT_EVENT_ID);
+	Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(ComponentUpdate.schema_type);
 
-	FUnrealObjectRef TargetObjectRef(PackageMap->GetUnrealObjectRefFromNetGUID(PackageMap->GetNetGUIDFromObject(TargetObject)));
-	ensure(TargetObjectRef != FUnrealObjectRef::UNRESOLVED_OBJECT_REF);
+	Schema_Object* RPCObject = Schema_AddObject(FieldsObject, RingBufferRPCId);
 
-	RPCPayload::WriteToSchemaObject(EventData, Payload.Offset, Payload.Index, Payload.PayloadData.GetData(), Payload.PayloadData.Num());
+	RPCPayload::WriteToSchemaObject(RPCObject, Payload.Offset, Payload.Index, Payload.PayloadData.GetData(), Payload.PayloadData.Num());
 
 	return ComponentUpdate;
 }
+
 ERPCResult USpatialSender::AddPendingRPC(UObject* TargetObject, UFunction* Function, const RPCPayload& Payload, Worker_ComponentId ComponentId, Schema_FieldId RPCIndex)
 {
 	FUnrealObjectRef TargetObjectRef(PackageMap->GetUnrealObjectRefFromNetGUID(PackageMap->GetNetGUIDFromObject(TargetObject)));
@@ -1044,11 +1072,6 @@ ERPCResult USpatialSender::AddPendingRPC(UObject* TargetObject, UFunction* Funct
 	if (ControllerChannel == nullptr)
 	{
 		return ERPCResult::NoControllerChannel;
-	}
-
-	if (!ControllerChannel->IsListening())
-	{
-		return ERPCResult::ControllerChannelNotListening;
 	}
 
 	FUnrealObjectRef ControllerObjectRef = PackageMap->GetUnrealObjectRefFromObject(Controller);
