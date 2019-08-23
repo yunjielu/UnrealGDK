@@ -107,8 +107,12 @@ namespace SpatialConstants
 	const Worker_ComponentId STARTUP_ACTOR_MANAGER_COMPONENT_ID			    = 9993;
 	const Worker_ComponentId GSM_SHUTDOWN_COMPONENT_ID						= 9992;
 	const Worker_ComponentId HEARTBEAT_COMPONENT_ID							= 9991;
+
+	// Note: RPC endpoints are named by who gets authority over the component, not by the RPC type.
+	// For example, server will send Client RPCs, so they will go on the server RPC endpoint, and vice versa.
 	const Worker_ComponentId CLIENT_RPC_ENDPOINT_COMPONENT_ID				= 9990;
 	const Worker_ComponentId SERVER_RPC_ENDPOINT_COMPONENT_ID				= 9989;
+
 	const Worker_ComponentId NETMULTICAST_RPCS_COMPONENT_ID					= 9987;
 	const Worker_ComponentId NOT_STREAMED_COMPONENT_ID						= 9986;
 	const Worker_ComponentId DEBUG_METRICS_COMPONENT_ID						= 9984;
@@ -166,6 +170,8 @@ namespace SpatialConstants
 
 	const float FIRST_COMMAND_RETRY_WAIT_SECONDS = 0.2f;
 	const uint32 MAX_NUMBER_COMMAND_ATTEMPTS = 5u;
+
+	const uint32 RPC_RING_BUFFER_SIZE = 10u;
 
 	static const FName DefaultActorGroup = FName(TEXT("Default"));
 

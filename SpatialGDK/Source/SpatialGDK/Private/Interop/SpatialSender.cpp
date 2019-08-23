@@ -76,6 +76,7 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 {
 	AActor* Actor = Channel->Actor;
 	UClass* Class = Actor->GetClass();
+	Worker_EntityId EntityId = Channel->GetEntityId();
 
 	FString ClientWorkerAttribute = GetOwnerWorkerAttribute(Actor);
 
@@ -123,12 +124,6 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentWriteAcl.Add(SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID, AuthoritativeWorkerRequirementSet);
 	ComponentWriteAcl.Add(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID, AuthoritativeWorkerRequirementSet);
 	ComponentWriteAcl.Add(SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID, OwningClientOnlyRequirementSet);
-
-	// If there are pending RPCs, add them onto the endpoint.
-	if (OutgoingOnCreateEntityRPCs.Contains(Actor))
-	{
-		// TODO
-	}
 
 	// If Actor is a PlayerController, add the heartbeat component.
 	if (Actor->IsA<APlayerController>())
@@ -206,15 +201,6 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentDatas.Add(SpawnData(Actor).CreateSpawnDataData());
 	ComponentDatas.Add(UnrealMetadata(StablyNamedObjectRef, ClientWorkerAttribute, Class->GetPathName(), bNetStartup).CreateUnrealMetadataData());
 
-	if (RPCsOnEntityCreation* QueuedRPCs = OutgoingOnCreateEntityRPCs.Find(Actor))
-	{
-		if (QueuedRPCs->HasRPCPayloadData())
-		{
-			ComponentDatas.Add(QueuedRPCs->CreateRPCPayloadData());
-		}
-		OutgoingOnCreateEntityRPCs.Remove(Actor);
-	}
-
 	if (Class->HasAnySpatialClassFlags(SPATIALCLASS_Singleton))
 	{
 		ComponentDatas.Add(Singleton().CreateSingletonData());
@@ -248,7 +234,40 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentDatas.Add(InterestDataFactory.CreateInterestData());
 
 	ComponentDatas.Add(ClientRPCEndpoint().CreateRPCEndpointData());
-	ComponentDatas.Add(ServerRPCEndpoint().CreateRPCEndpointData());
+
+	//ComponentDatas.Add(ServerRPCEndpoint().CreateRPCEndpointData());
+	Worker_ComponentData ServerRPCEndpointData = ServerRPCEndpoint().CreateRPCEndpointData();
+	if (RPCsOnEntityCreation* QueuedRPCs = OutgoingOnCreateEntityRPCs.Find(Actor))
+	{
+		if (QueuedRPCs->HasRPCPayloadData())
+		{
+			if (QueuedRPCs->RPCs.Num() > SpatialConstants::RPC_RING_BUFFER_SIZE)
+			{
+				// TODO: Queue/drop RPC that don't fit
+				checkNoEntry();
+			}
+
+			Schema_Object* FieldsObject = Schema_GetComponentDataFields(ServerRPCEndpointData.schema_type);
+
+			uint32 RingBufferRPCId = 2;
+			for (const RPCPayload& Payload : QueuedRPCs->RPCs)
+			{
+				Schema_Object* RPCObject = Schema_AddObject(FieldsObject, RingBufferRPCId);
+
+				RPCPayload::WriteToSchemaObject(RPCObject, Payload.Offset, Payload.Index, Payload.PayloadData.GetData(), Payload.PayloadData.Num());
+
+				RingBufferRPCId++;
+			}
+
+			uint32& LastSentRPCId = LastSentRPCIdMap.FindOrAdd(EntityId).FindOrAdd(SCHEMA_ClientReliableRPC);
+			LastSentRPCId = QueuedRPCs->RPCs.Num();
+			Schema_AddUint32(FieldsObject, 1, LastSentRPCId);
+			Schema_AddUint32(FieldsObject, 12, 0);
+		}
+		OutgoingOnCreateEntityRPCs.Remove(Actor);
+	}
+	ComponentDatas.Add(ServerRPCEndpointData);
+
 	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID));
 
 	// Only add subobjects which are replicating
@@ -333,7 +352,6 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 
 	ComponentDatas.Add(EntityAcl(ReadAcl, ComponentWriteAcl).CreateEntityAclData());
 
-	Worker_EntityId EntityId = Channel->GetEntityId();
 	Worker_RequestId CreateEntityRequestId = Connection->SendCreateEntityRequest(MoveTemp(ComponentDatas), &EntityId);
 	PendingActorRequests.Add(CreateEntityRequestId, Channel);
 
@@ -501,6 +519,8 @@ void USpatialSender::CreateServerWorkerEntity(int AttemptCounter)
 
 void USpatialSender::UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 LastExecutedRPCId)
 {
+	UE_LOG(LogTemp, Log, TEXT("%s UpdateLastExecutedRPC(%lld, %u)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), EntityId, LastExecutedRPCId);
+
 	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
 	{
@@ -520,6 +540,8 @@ void USpatialSender::UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 Last
 
 void USpatialSender::ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecutedRPCId, ESchemaComponentType RPCType)
 {
+	UE_LOG(LogTemp, Log, TEXT("%s ClearSentRPCs(%lld, %u, %d)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), EntityId, LastExecutedRPCId, RPCType);
+
 	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
 	{
@@ -534,7 +556,7 @@ void USpatialSender::ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecuted
 	uint32& LastClearedRPCId = LastClearedRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
 	for (uint32 RPCIndex = LastClearedRPCId + 1; RPCIndex <= LastExecutedRPCId; RPCIndex++)
 	{
-		Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % 10) + 2;
+		Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % SpatialConstants::RPC_RING_BUFFER_SIZE) + 2;
 		Schema_AddComponentUpdateClearedField(ComponentUpdate.schema_type, RingBufferFieldId);
 	}
 	LastClearedRPCId = LastExecutedRPCId;
@@ -802,7 +824,7 @@ ERPCResult USpatialSender::SendRPCInternal(UObject* TargetObject, UFunction* Fun
 		}
 
 		////////////////////////////////
-		// If less than 10 RPCs on the queue, add one on top
+		// If less than <buffer size> RPCs on the queue, add one on top
 		// Else queue it up
 
 		EntityId = TargetObjectRef.Entity;
@@ -857,20 +879,30 @@ ERPCResult USpatialSender::SendRPCInternal(UObject* TargetObject, UFunction* Fun
 			}
 
 			ESchemaComponentType RPCType =	RPCInfo.Type == SCHEMA_ServerUnreliableRPC ? SCHEMA_ServerReliableRPC :
-											RPCInfo.Type == SCHEMA_ClientUnreliableRPC : SCHEMA_ClientReliableRPC :
+											RPCInfo.Type == SCHEMA_ClientUnreliableRPC ? SCHEMA_ClientReliableRPC :
 											RPCInfo.Type;
 
 			uint32& LastSentRPCId = LastSentRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
 			uint32& LastClearedRPCId = LastClearedRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
 
 			uint32 NextRPCId = LastSentRPCId + 1;
-			if (NextRPCId > LastClearedRPCId + 10)
+			if (NextRPCId > LastClearedRPCId + SpatialConstants::RPC_RING_BUFFER_SIZE)
 			{
-				// TODO: RPC capacity filled, need to queue this
-				checkNoEntry();
+				// TODO: RPC capacity filled, need to queue this if it's reliable
+				ensure(NextRPCId == LastClearedRPCId + SpatialConstants::RPC_RING_BUFFER_SIZE + 1);
+
+				// If this is an unreliable RPC, drop it.
+				if (RPCInfo.Type == SCHEMA_ClientUnreliableRPC || RPCInfo.Type == SCHEMA_ServerUnreliableRPC)
+				{
+					return ERPCResult::Success;// ERPCResult::RingBufferOverflow;
+				}
+
+				// Otherwise, overwrite the oldest one
+				UE_LOG(LogTemp, Log, TEXT("Ring buffer overflowed, overwriting old rpc"));
+				LastClearedRPCId++;
 			}
 
-			Schema_FieldId RingBufferRPCId = (NextRPCId - 1) % 10 + 2;
+			Schema_FieldId RingBufferRPCId = (NextRPCId - 1) % SpatialConstants::RPC_RING_BUFFER_SIZE + 2;
 
 			Worker_ComponentUpdate ComponentUpdate = CreateRPCUpdate(TargetObject, Payload, ComponentId, RingBufferRPCId);
 			LastSentRPCId = NextRPCId;

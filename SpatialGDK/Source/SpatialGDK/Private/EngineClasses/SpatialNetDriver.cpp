@@ -1094,6 +1094,14 @@ void USpatialNetDriver::ProcessRPC(AActor* Actor, UObject* SubObject, UFunction*
 	}
 	RPCPayload Payload = Sender->CreateRPCPayloadFromParams(CallingObject, CallingObjectRef, Function, ReliableRPCIndex, Parameters);
 
+	UE_LOG(LogTemp, Log, TEXT("%s>>>%s%s %.2f: %s %s"),
+		IsServer() ? TEXT("S") : TEXT("C"),
+		(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
+		(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
+		GetWorld()->GetTimeSeconds(),
+		*CallingObject->GetName(),
+		*Function->GetName());
+
 	Sender->ProcessOrQueueOutgoingRPC(CallingObjectRef, MoveTemp(Payload));
 }
 

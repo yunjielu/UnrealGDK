@@ -203,6 +203,9 @@ private:
 
 	void OnHeartbeatComponentUpdate(const Worker_ComponentUpdateOp& Op);
 
+	void AddRPCEndpointComponent(Worker_EntityId EntityId, const Worker_ComponentData& Data);
+	void ExecuteInitialClientRPCs(Worker_EntityId EntityId);
+
 public:
 	TMap<FUnrealObjectRef, TSet<FChannelObjectPair>> IncomingRefsMap;
 
@@ -258,4 +261,18 @@ private:
 
 	// TODO: store this in actor channel? static component view?
 	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastHandledRPCIdMap;
+
+	struct InitialClientRPCs
+	{
+		bool ReadyToExecute() const
+		{
+			return bGainedClientAuthority && bReceivedServerEndpoint;
+		}
+
+		TArray<SpatialGDK::RPCPayload> RPCs;
+		uint32 LastSentRPCId = 0;
+		bool bGainedClientAuthority = false;
+		bool bReceivedServerEndpoint = false;
+	};
+	TMap<Worker_EntityId_Key, InitialClientRPCs> InitialClientRPCMap;
 };

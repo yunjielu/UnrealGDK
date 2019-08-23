@@ -3,6 +3,7 @@
 #pragma once	
 
 #include "Schema/Component.h"	
+#include "Schema/RPCPayload.h"
 #include "SpatialConstants.h"	
 #include "Utils/SchemaUtils.h"	
 

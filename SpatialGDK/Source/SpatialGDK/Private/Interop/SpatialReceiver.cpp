@@ -117,11 +117,8 @@ void USpatialReceiver::OnAddComponent(const Worker_AddComponentOp& Op)
 	case SpatialConstants::NOT_STREAMED_COMPONENT_ID:
 	case SpatialConstants::GSM_SHUTDOWN_COMPONENT_ID:
 	case SpatialConstants::HEARTBEAT_COMPONENT_ID:
-	case SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID:
 	case SpatialConstants::DEBUG_METRICS_COMPONENT_ID:
 	case SpatialConstants::ALWAYS_RELEVANT_COMPONENT_ID:
-	case SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID:
-	case SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID:
 		// Ignore static spatial components as they are managed by the SpatialStaticComponentView.
 		return;
 	case SpatialConstants::SINGLETON_MANAGER_COMPONENT_ID:
@@ -133,6 +130,11 @@ void USpatialReceiver::OnAddComponent(const Worker_AddComponentOp& Op)
 		return;
 	case SpatialConstants::STARTUP_ACTOR_MANAGER_COMPONENT_ID:
 		GlobalStateManager->ApplyStartupActorManagerData(Op.data);
+		return;
+	case SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID:
+	case SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID:
+	case SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID:
+		AddRPCEndpointComponent(Op.entity_id, Op.data);
 		return;
 	}
 
@@ -287,7 +289,12 @@ void USpatialReceiver::HandleActorAuthority(const Worker_AuthorityChangeOp& Op)
 	{
 		check(!NetDriver->IsServer());
 
-		// Start executing client RPCs
+		InitialClientRPCs& Entry = InitialClientRPCMap.FindOrAdd(Op.entity_id);
+		Entry.bGainedClientAuthority = true;
+		if (Entry.ReadyToExecute())
+		{
+			ExecuteInitialClientRPCs(Op.entity_id);
+		}
 	}
 
 	if (APlayerController* PlayerController = Cast<APlayerController>(Actor))
@@ -1153,64 +1160,74 @@ void USpatialReceiver::HandleRPC(const Worker_ComponentUpdateOp& Op)
 		? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 
 	// Multicast RPCs should be executed by whoever receives them.
-	const bool bIsNetMulticast = Op.update.component_id != SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID;
-	if (bIsNetMulticast)
+	const bool bIsNetMulticast = Op.update.component_id == SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID;
+	if (!bIsNetMulticast)
 	{
 		if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
 		{
+			// TODO: handle edge case: client hasn't received authority over client RPC endpoint yet, now receives an update on server RPC endpoint with a new client RPC it should add to InitialClientRPCs.
 			return;
 		}
 	}
 
-	ESchemaComponentType RPCType = bIsNetMulticast ? SCHEMA_NetMulticastRPC : NetDriver->IsServer() ? SCHEMA_ClientReliableRPC : SCHEMA_ServerReliableRPC;
-
-	Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(Op.update);
+	Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(Op.update.schema_type);
 	// New RPCs
 	if (Schema_GetUint32Count(FieldsObject, 1) > 0)
 	{
+		ESchemaComponentType RPCType = bIsNetMulticast ? SCHEMA_NetMulticastRPC : NetDriver->IsServer() ? SCHEMA_ServerReliableRPC : SCHEMA_ClientReliableRPC;
+
 		uint32 LastSentRPCId = Schema_GetUint32(FieldsObject, 1);
 
 		uint32& LastHandledRPCId = LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
-		if (LastSentRPCId > LastHandledRPCId + 10)
+		if (LastSentRPCId > LastHandledRPCId + SpatialConstants::RPC_RING_BUFFER_SIZE)
 		{
 			// We missed some RPCs, should only be possible for multicast
 			ensure(bIsNetMulticast);
-			LastHandledRPCId = LastSentRPCId - 10;
+			LastHandledRPCId = LastSentRPCId - SpatialConstants::RPC_RING_BUFFER_SIZE;
 		}
 
-		for (uint32 RPCIndex = LastHandledRPCId + 1; RPCIndex <= LastSentRPCId; RPCIndex++)
+		if (LastSentRPCId > LastHandledRPCId)
 		{
-			// Apply RPC
-			Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % 10) + 2;
-			if (Schema_GetObjectCount(FieldsObject, RingBufferFieldId) > 0)
+			for (uint32 RPCIndex = LastHandledRPCId + 1; RPCIndex <= LastSentRPCId; RPCIndex++)
 			{
-				RPCPayload Payload(Schema_GetObject(FieldsObject, RingBufferFieldId));
-				FUnrealObjectRef ObjectRef(EntityId, Payload.Offset);
-
-				if (PackageMap->GetObjectFromUnrealObjectRef(ObjectRef).IsValid())
+				// Apply RPC
+				Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % SpatialConstants::RPC_RING_BUFFER_SIZE) + 2;
+				if (Schema_GetObjectCount(FieldsObject, RingBufferFieldId) > 0)
 				{
-					ProcessOrQueueIncomingRPC(ObjectRef, MoveTemp(Payload));
+					RPCPayload Payload(Schema_GetObject(FieldsObject, RingBufferFieldId));
+					FUnrealObjectRef ObjectRef(EntityId, Payload.Offset);
+
+					if (PackageMap->GetObjectFromUnrealObjectRef(ObjectRef).IsValid())
+					{
+						ProcessOrQueueIncomingRPC(ObjectRef, MoveTemp(Payload));
+					}
+				}
+				else
+				{
+					// Multicast RPC expired?
+					ensure(bIsNetMulticast);
 				}
 			}
-			else
+
+			LastHandledRPCId = LastSentRPCId;
+
+			if (!bIsNetMulticast)
 			{
-				// Multicast RPC expired?
-				ensure(bIsNetMulticast);
+				// Send component update to the opposite comp updating executed index
+				Sender->UpdateLastExecutedRPC(EntityId, LastHandledRPCId);
 			}
 		}
-
-		LastHandledRPCId = LastSentRPCId;
-
-		if (bIsNetMulticast)
+		else
 		{
-			// Send component update to the opposite comp updating executed index
-			Sender->UpdateLastExecutedRPC(EntityId, LastHandledRPCId);
+			ensure(LastSentRPCId == LastHandledRPCId);
 		}
 	}
 
 	// Executed RPCs acked
-	if (bIsNetMulticast && Schema_GetUint32Count(FieldsObject, 12) > 0)
+	if (!bIsNetMulticast && Schema_GetUint32Count(FieldsObject, 12) > 0)
 	{
+		ESchemaComponentType RPCType = NetDriver->IsServer() ? SCHEMA_ClientReliableRPC : SCHEMA_ServerReliableRPC;
+
 		uint32 LastExecutedRPCId = Schema_GetUint32(FieldsObject, 12);
 
 		Sender->ClearSentRPCs(EntityId, LastExecutedRPCId, RPCType);
@@ -1395,6 +1412,14 @@ void USpatialReceiver::ApplyComponentUpdate(const Worker_ComponentUpdate& Compon
 
 ERPCResult USpatialReceiver::ApplyRPCInternal(UObject* TargetObject, UFunction* Function, const RPCPayload& Payload, const FString& SenderWorkerId)
 {
+	UE_LOG(LogTemp, Log, TEXT("%s<<<%s%s %.2f COMP %s %s"),
+		NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
+		(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
+		(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
+		NetDriver->GetWorld()->GetTimeSeconds(),
+		*TargetObject->GetName(),
+		*Function->GetName());
+
 	ERPCResult Result = ERPCResult::Unknown;
 
 	uint8* Parms = (uint8*)FMemory_Alloca(Function->ParmsSize);
@@ -1928,3 +1953,88 @@ void USpatialReceiver::OnHeartbeatComponentUpdate(const Worker_ComponentUpdateOp
 		AuthorityPlayerControllerConnectionMap.Remove(Op.entity_id);
 	}
 } 
+
+void USpatialReceiver::AddRPCEndpointComponent(Worker_EntityId EntityId, const Worker_ComponentData& Data)
+{
+	// Server received server endpoint or client received client endpoint - get the last handled ID
+	// This could potentially be merged with gain authority in worker wrapper?
+	if ((NetDriver->IsServer() && Data.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID) ||
+		(!NetDriver->IsServer() && Data.component_id == SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID))
+	{
+		Schema_Object* FieldsObject = Schema_GetComponentDataFields(Data.schema_type);
+		LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(NetDriver->IsServer() ? SCHEMA_ClientReliableRPC : SCHEMA_ServerReliableRPC) = Schema_GetUint32(FieldsObject, 12);
+
+		// TODO: Set last sent ID
+		return;
+	}
+
+	if (NetDriver->IsServer() || Data.component_id != SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID)
+	{
+		return;
+	}
+
+	// We're a client receiving server RPC endpoint containing client RPCs.
+
+	InitialClientRPCs& Entry = InitialClientRPCMap.FindOrAdd(EntityId);
+
+	Schema_Object* EndpointObject = Schema_GetComponentDataFields(Data.schema_type);
+	Entry.LastSentRPCId = Schema_GetUint32(EndpointObject, 1);
+
+	uint32 FirstRPCIdToTry = FMath::Max<int>(Entry.LastSentRPCId - SpatialConstants::RPC_RING_BUFFER_SIZE + 1, 1);
+	for (uint32 RPCIndex = FirstRPCIdToTry; RPCIndex <= Entry.LastSentRPCId; RPCIndex++)
+	{
+		Schema_FieldId RingBufferFieldId = (RPCIndex - 1) % SpatialConstants::RPC_RING_BUFFER_SIZE + 2;
+		if (Schema_GetObjectCount(EndpointObject, RingBufferFieldId) > 0)
+		{
+			Entry.RPCs.Add(RPCPayload(Schema_GetObject(EndpointObject, RingBufferFieldId)));
+		}
+		else
+		{
+			// Once we find the first set RPC field, the following fields should also be set, i.e. something went wrong if we see gaps in the ring buffer.
+			ensure(Entry.RPCs.Num() == 0);
+		}
+	}
+
+	Entry.bReceivedServerEndpoint = true;
+	if (Entry.ReadyToExecute())
+	{
+		ExecuteInitialClientRPCs(EntityId);
+	}
+}
+
+void USpatialReceiver::ExecuteInitialClientRPCs(Worker_EntityId EntityId)
+{
+	InitialClientRPCs& Entry = InitialClientRPCMap.FindChecked(EntityId);
+
+	if (Entry.RPCs.Num() > 0)
+	{
+		uint32& LastHandledRPCId = LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(SCHEMA_ClientReliableRPC);
+
+		ensure(Entry.RPCs.Num() <= SpatialConstants::RPC_RING_BUFFER_SIZE);
+
+		uint32 FirstIndex = 0;
+		if (LastHandledRPCId + Entry.RPCs.Num() > Entry.LastSentRPCId)
+		{
+			FirstIndex = Entry.RPCs.Num() - (Entry.LastSentRPCId - LastHandledRPCId);
+		}
+
+		for (uint32 RPCIndex = FirstIndex; RPCIndex < static_cast<uint32>(Entry.RPCs.Num()); RPCIndex++)
+		{
+			// Apply RPC
+			RPCPayload& Payload = Entry.RPCs[RPCIndex];
+			FUnrealObjectRef ObjectRef(EntityId, Payload.Offset);
+
+			if (PackageMap->GetObjectFromUnrealObjectRef(ObjectRef).IsValid())
+			{
+				ProcessOrQueueIncomingRPC(ObjectRef, MoveTemp(Payload));
+			}
+		}
+
+		LastHandledRPCId = Entry.LastSentRPCId;
+
+		// Send component update to the client comp updating executed index
+		Sender->UpdateLastExecutedRPC(EntityId, LastHandledRPCId);
+	}
+
+	InitialClientRPCMap.Remove(EntityId);
+}
