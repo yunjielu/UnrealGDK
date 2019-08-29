@@ -1996,6 +1996,7 @@ void USpatialReceiver::AddRPCEndpointComponent(Worker_EntityId EntityId, const W
 	}
 
 	Entry.bReceivedServerEndpoint = true;
+	// Note: this is actually unnecessary because when checking out entities we always apply authority after adding components.
 	if (Entry.ReadyToExecute())
 	{
 		ExecuteInitialClientRPCs(EntityId);
