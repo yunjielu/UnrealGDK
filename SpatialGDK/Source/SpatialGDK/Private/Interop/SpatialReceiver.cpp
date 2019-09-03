@@ -297,6 +297,15 @@ void USpatialReceiver::HandleActorAuthority(const Worker_AuthorityChangeOp& Op)
 		}
 	}
 
+	if ((Op.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID ||
+		Op.component_id == SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID)
+		&& Op.authority == WORKER_AUTHORITY_AUTHORITATIVE)
+	{
+		check(NetDriver->IsServer());
+
+		Sender->OnGainAuthorityRPCEndpoint(Op.entity_id, Op.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID ? SCHEMA_ClientReliableRPC : SCHEMA_NetMulticastRPC);
+	}
+
 	if (APlayerController* PlayerController = Cast<APlayerController>(Actor))
 	{
 		HandlePlayerLifecycleAuthority(Op, PlayerController);
@@ -1159,6 +1168,23 @@ void USpatialReceiver::HandleRPC(const Worker_ComponentUpdateOp& Op)
 	const Worker_ComponentId RPCEndpointComponentId = Op.update.component_id == SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID
 		? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 
+	if (NetDriver->IsServer() &&
+		(Op.update.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID ||
+		Op.update.component_id == SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID) &&
+		!StaticComponentView->HasAuthority(EntityId, Op.update.component_id))
+	{
+		Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(Op.update.schema_type);
+		if (Schema_GetUint32Count(FieldsObject, 1) > 0)
+		{
+			Sender->SetLastSentRPCId(EntityId, Op.update.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID ? SCHEMA_ClientReliableRPC : SCHEMA_NetMulticastRPC, Schema_GetUint32(FieldsObject, 1));
+		}
+		if (Op.update.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID && Schema_GetUint32Count(FieldsObject, 12) > 0)
+		{
+			LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(SCHEMA_ServerReliableRPC) = Schema_GetUint32(FieldsObject, 12);
+			UE_LOG(LogTemp, Log, TEXT("%s%d LastHandledRPCId %lld = %u"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), GPlayInEditorID, EntityId, Schema_GetUint32(FieldsObject, 12));
+		}
+	}
+
 	// Multicast RPCs should be executed by whoever receives them.
 	const bool bIsNetMulticast = Op.update.component_id == SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID;
 	if (!bIsNetMulticast)
@@ -1412,8 +1438,9 @@ void USpatialReceiver::ApplyComponentUpdate(const Worker_ComponentUpdate& Compon
 
 ERPCResult USpatialReceiver::ApplyRPCInternal(UObject* TargetObject, UFunction* Function, const RPCPayload& Payload, const FString& SenderWorkerId, bool bApplyWithUnresolvedRefs /* = false */)
 {
-	UE_LOG(LogTemp, Log, TEXT("%s<<<%s%s %.2f COMP %s %s"),
+	UE_LOG(LogTemp, Log, TEXT("%s%d<<<%s%s %.2f COMP %s %s"),
 		NetDriver->IsServer() ? TEXT("S") : TEXT("C"),
+		GPlayInEditorID,
 		(Function->FunctionFlags & FUNC_NetReliable) ? TEXT("R") : TEXT("U"),
 		(Function->FunctionFlags & FUNC_NetClient) ? TEXT("C") : (Function->FunctionFlags & FUNC_NetServer) ? TEXT("S") : TEXT("O"),
 		NetDriver->GetWorld()->GetTimeSeconds(),
@@ -1964,13 +1991,22 @@ void USpatialReceiver::OnHeartbeatComponentUpdate(const Worker_ComponentUpdateOp
 
 void USpatialReceiver::AddRPCEndpointComponent(Worker_EntityId EntityId, const Worker_ComponentData& Data)
 {
+	if (NetDriver->IsServer() &&
+		(Data.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID ||
+		Data.component_id == SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID) &&
+		!StaticComponentView->HasAuthority(EntityId, Data.component_id))
+	{
+		Schema_Object* FieldsObject = Schema_GetComponentDataFields(Data.schema_type);
+		Sender->SetLastSentRPCId(EntityId, Data.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID ? SCHEMA_ClientReliableRPC : SCHEMA_NetMulticastRPC, Schema_GetUint32(FieldsObject, 1));
+	}
+
 	// Server received server endpoint or client received client endpoint - get the last handled ID
 	// This could potentially be merged with gain authority in worker wrapper?
 	if ((NetDriver->IsServer() && Data.component_id == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID) ||
 		(!NetDriver->IsServer() && Data.component_id == SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID))
 	{
 		Schema_Object* FieldsObject = Schema_GetComponentDataFields(Data.schema_type);
-		LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(NetDriver->IsServer() ? SCHEMA_ClientReliableRPC : SCHEMA_ServerReliableRPC) = Schema_GetUint32(FieldsObject, 12);
+		LastHandledRPCIdMap.FindOrAdd(EntityId).FindOrAdd(NetDriver->IsServer() ? SCHEMA_ServerReliableRPC : SCHEMA_ClientReliableRPC) = Schema_GetUint32(FieldsObject, 12);
 
 		// TODO: Set last sent ID
 		return;

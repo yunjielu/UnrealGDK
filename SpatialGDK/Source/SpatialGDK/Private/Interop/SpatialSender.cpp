@@ -236,6 +236,8 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	ComponentDatas.Add(ClientRPCEndpoint().CreateRPCEndpointData());
 
 	//ComponentDatas.Add(ServerRPCEndpoint().CreateRPCEndpointData());
+	SetLastSentRPCId(EntityId, SCHEMA_ClientReliableRPC, 0);
+	SetLastSentRPCId(EntityId, SCHEMA_NetMulticastRPC, 0);
 	Worker_ComponentData ServerRPCEndpointData = ServerRPCEndpoint().CreateRPCEndpointData();
 	if (RPCsOnEntityCreation* QueuedRPCs = OutgoingOnCreateEntityRPCs.Find(Actor))
 	{
@@ -505,7 +507,7 @@ void USpatialSender::CreateServerWorkerEntity(int AttemptCounter)
 
 void USpatialSender::UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 LastExecutedRPCId)
 {
-	UE_LOG(LogTemp, Log, TEXT("%s UpdateLastExecutedRPC(%lld, %u)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), EntityId, LastExecutedRPCId);
+	UE_LOG(LogTemp, Log, TEXT("%s%d UpdateLastExecutedRPC(%lld, %u)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), GPlayInEditorID, EntityId, LastExecutedRPCId);
 
 	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
@@ -526,7 +528,7 @@ void USpatialSender::UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 Last
 
 void USpatialSender::ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecutedRPCId, ESchemaComponentType RPCType)
 {
-	UE_LOG(LogTemp, Log, TEXT("%s ClearSentRPCs(%lld, %u, %d)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), EntityId, LastExecutedRPCId, RPCType);
+	UE_LOG(LogTemp, Log, TEXT("%s%d ClearSentRPCs(%lld, %u, %d)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), GPlayInEditorID, EntityId, LastExecutedRPCId, RPCType);
 
 	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
 	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
@@ -669,6 +671,16 @@ TArray<Worker_InterestOverride> USpatialSender::CreateComponentInterestForActor(
 	ComponentInterest.Add({ SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID, bIsNetOwned });
 
 	return ComponentInterest;
+}
+
+void USpatialSender::SetLastSentRPCId(Worker_EntityId Entity, ESchemaComponentType RPCType, uint32 LastSentRPCId)
+{
+	LastSentRPCIdMap.FindOrAdd(Entity).FindOrAdd(RPCType) = LastSentRPCId;
+}
+
+void USpatialSender::OnGainAuthorityRPCEndpoint(Worker_EntityId Entity, ESchemaComponentType RPCType)
+{
+	LastClearedRPCIdMap.FindOrAdd(Entity).FindOrAdd(RPCType) = LastSentRPCIdMap.FindChecked(Entity).FindChecked(RPCType);
 }
 
 RPCPayload USpatialSender::CreateRPCPayloadFromParams(UObject* TargetObject, const FUnrealObjectRef& TargetObjectRef, UFunction* Function, int ReliableRPCIndex, void* Params)

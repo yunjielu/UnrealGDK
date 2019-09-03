@@ -722,6 +722,7 @@ bool SpatialGDKGenerateSchema()
 
 	GenerateSchemaFromClasses(TypeInfos, SchemaOutputPath, IdGenerator);
 	GenerateSchemaForSublevels(SchemaOutputPath, IdGenerator);
+	GenerateSchemaForRPCEndpoints(SchemaOutputPath);
 	NextAvailableComponentId = IdGenerator.Peek();
 	if (!SaveSchemaDatabase())
 	{

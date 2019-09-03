@@ -164,4 +164,9 @@ private:
 	// TODO: Store this in actor channel? Static component view?
 	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastClearedRPCIdMap;
 	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastSentRPCIdMap;
+
+// Yes, this is hacky
+public:
+	void SetLastSentRPCId(Worker_EntityId Entity, ESchemaComponentType RPCType, uint32 LastSentRPCId);
+	void OnGainAuthorityRPCEndpoint(Worker_EntityId Entity, ESchemaComponentType RPCType);
 };

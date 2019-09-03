@@ -39,6 +39,7 @@ USpatialGDKSettings::USpatialGDKSettings(const FObjectInitializer& ObjectInitial
 	, DefaultWorkerType(FWorkerType(SpatialConstants::DefaultServerWorkerType))
 	, bEnableOffloading(false)
 	, ServerWorkerTypes({ SpatialConstants::DefaultServerWorkerType })
+	, DefaultRPCRingBufferSize(8)
 {
 	DefaultReceptionistHost = SpatialConstants::LOCAL_HOST;
 }
@@ -56,6 +57,16 @@ void USpatialGDKSettings::PostInitProperties()
 	PlayInSettings->bEnableOffloading = bEnableOffloading;
 	PlayInSettings->DefaultWorkerType = DefaultWorkerType.WorkerTypeName;
 #endif
+}
+
+uint32 USpatialGDKSettings::GetRPCRingBufferSize(ESchemaComponentType RPCType) const
+{
+	if (const uint32* Size = RPCRingBufferSizeMap.Find(RPCType))
+	{
+		return *Size;
+	}
+
+	return DefaultRPCRingBufferSize;
 }
 
 #if WITH_EDITOR
@@ -79,6 +90,10 @@ void USpatialGDKSettings::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		FMessageDialog::Open(EAppMsgType::Ok,
 			FText::FromString(FString::Printf(TEXT("You MUST regenerate schema using the full scan option after changing the number of max dynamic subobjects. "
 				"Failing to do will result in unintended behavior or crashes!"))));
+	}
+	else if (Name == GET_MEMBER_NAME_CHECKED(USpatialGDKSettings, RPCRingBufferSizeMap))
+	{
+		// TODO: Check that map entries are valid.
 	}
 }
 #endif

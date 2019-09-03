@@ -32,32 +32,6 @@ ESchemaComponentType PropertyGroupToSchemaComponentType(EReplicatedPropertyGroup
 	}
 }
 
-ESchemaComponentType RPCTypeToSchemaComponentType(ERPCType RPC)
-{
-	if (RPC == RPC_Client)
-	{
-		return SCHEMA_ClientReliableRPC;
-	}
-	else if (RPC == RPC_Server)
-	{
-		return SCHEMA_ServerReliableRPC;
-	}
-	else if (RPC == RPC_NetMulticast)
-	{
-		return SCHEMA_NetMulticastRPC;
-	}
-	else if (RPC == RPC_CrossServer)
-	{
-		return SCHEMA_CrossServerRPC;
-	}
-	else
-	{
-		checkNoEntry();
-		return SCHEMA_Invalid;
-	}
-
-}
-
 // Given a RepLayout cmd type (a data type supported by the replication system). Generates the corresponding
 // type used in schema.
 FString PropertyToSchemaType(UProperty* Property, bool bIsRPCProperty)
@@ -645,4 +619,78 @@ void GenerateSubobjectSchemaForActorIncludes(FCodeWriter& Writer, TSharedPtr<FUn
 			}
 		}
 	}
+}
+
+FString GetRPCFieldPrefix(ESchemaComponentType RPCType)
+{
+	switch (RPCType)
+	{
+	case SCHEMA_ClientReliableRPC:
+		return TEXT("server_to_client_reliable");
+	case SCHEMA_ClientUnreliableRPC:
+		return TEXT("server_to_client_unreliable");
+	case SCHEMA_ServerReliableRPC:
+		return TEXT("client_to_server_reliable");
+	case SCHEMA_ServerUnreliableRPC:
+		return TEXT("client_to_server_unreliable");
+	case SCHEMA_NetMulticastRPC:
+		return TEXT("multicast");
+	default:
+		checkNoEntry();
+	}
+
+	return FString();
+}
+
+void GenerateRPCEndpoint(FCodeWriter& Writer, FString EndpointName, Worker_ComponentId ComponentId, TArray<ESchemaComponentType> SentRPCTypes, TArray<ESchemaComponentType> AckedRPCTypes)
+{
+	Writer.PrintNewLine();
+	Writer.Printf("component Unreal{0}RPCEndpoint {", *EndpointName).Indent();
+	Writer.Printf("id = {0};", ComponentId);
+
+	Schema_FieldId FieldId = 1;
+	for (ESchemaComponentType SentRPCType : SentRPCTypes)
+	{
+		uint32 RingBufferSize = GetDefault<USpatialGDKSettings>()->GetRPCRingBufferSize(SentRPCType);
+
+		for (uint32 i = 1; i <= RingBufferSize; i++)
+		{
+			Writer.Printf("option<UnrealRPCPayload> {0}_rpc_{1} = {2};", GetRPCFieldPrefix(SentRPCType), i, FieldId++);
+		}
+		Writer.Printf("uint32 last_sent_{0}_rpc = {1};", GetRPCFieldPrefix(SentRPCType), FieldId++);
+
+		// TODO: Check that this matches expected field IDs.
+	}
+
+	for (ESchemaComponentType AckedRPCType : AckedRPCTypes)
+	{
+		Writer.Printf("uint32 last_executed_{0}_rpc = {1};", GetRPCFieldPrefix(AckedRPCType), FieldId++);
+	}
+
+	// CrossServer RPC uses commands, only exists on ServerRPCEndpoint
+	if (ComponentId == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID)
+	{
+		Writer.Print("command Void server_to_server_rpc_command(UnrealRPCPayload);");
+	}
+
+	Writer.Outdent().Print("}");
+}
+
+void GenerateSchemaForRPCEndpoints(FString SchemaPath)
+{
+	FCodeWriter Writer;
+
+	Writer.Print(R"""(
+		// Copyright (c) Improbable Worlds Ltd, All Rights Reserved
+		// Note that this file has been generated automatically
+		package unreal.generated;)""");
+	Writer.PrintNewLine();
+	Writer.Print("import \"unreal/gdk/core_types.schema\";");
+	Writer.Print("import \"unreal/gdk/rpc_payload.schema\";");
+
+	GenerateRPCEndpoint(Writer, TEXT("Client"), SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID, { SCHEMA_ServerReliableRPC, SCHEMA_ServerUnreliableRPC }, { SCHEMA_ClientReliableRPC, SCHEMA_ClientUnreliableRPC });
+	GenerateRPCEndpoint(Writer, TEXT("Server"), SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID, { SCHEMA_ClientReliableRPC, SCHEMA_ClientUnreliableRPC }, { SCHEMA_ServerReliableRPC, SCHEMA_ServerUnreliableRPC });
+	GenerateRPCEndpoint(Writer, TEXT("Multicast"), SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID, { SCHEMA_NetMulticastRPC }, {});
+
+	Writer.WriteToFile(FString::Printf(TEXT("%srpc_endpoints.schema"), *SchemaPath));
 }
