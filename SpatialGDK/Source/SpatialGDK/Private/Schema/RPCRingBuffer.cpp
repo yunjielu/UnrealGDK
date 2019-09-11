@@ -12,10 +12,8 @@ RPCRingBuffer::RPCRingBuffer(uint32 InRingBufferSize, Schema_FieldId InSchemaFie
 	RingBuffer.SetNum(RingBufferSize);
 }
 
-void RPCRingBuffer::ReadFromData(Schema_ComponentData* Data)
+void RPCRingBuffer::ReadFromSchema(Schema_Object* Fields)
 {
-	Schema_Object* Fields = Schema_GetComponentDataFields(Data);
-
 	for (uint32 i = 0; i < RingBufferSize; i++)
 	{
 		Schema_FieldId FieldId = SchemaFieldStart + i;
@@ -23,43 +21,28 @@ void RPCRingBuffer::ReadFromData(Schema_ComponentData* Data)
 		{
 			RingBuffer[i].Emplace(Schema_GetObject(Fields, FieldId));
 		}
-		else
-		{
-			RingBuffer[i].Reset();
-		}
 	}
 
-	LastSentRPCId = Schema_GetUint32(Fields, GetLastSentRPCIdFieldId());
+	if (Schema_GetUint64Count(Fields, GetLastSentRPCIdFieldId()) > 0)
+	{
+		LastSentRPCId = Schema_GetUint64(Fields, GetLastSentRPCIdFieldId());
+	}
 }
 
-void RPCRingBuffer::ReadFromUpdate(Schema_ComponentUpdate* Update)
+void RPCRingBuffer::WriteToSchema(Schema_Object* Fields, const TArray<RPCPayload>& RPCs)
 {
-	Schema_Object* Fields = Schema_GetComponentUpdateFields(Update);
-
-	for (uint32 i = 0; i < RingBufferSize; i++)
+	if (RPCs.Num() > 0)
 	{
-		Schema_FieldId FieldId = SchemaFieldStart + i;
-		if (Schema_GetObjectCount(Fields, FieldId) > 0)
+		// Write at most RingBufferSize RPCs.
+		for (int i = FMath::Max<int>(0, RPCs.Num() - RingBufferSize); i < RPCs.Num(); i++)
 		{
-			RingBuffer[i].Emplace(Schema_GetObject(Fields, FieldId));
+			Schema_FieldId FieldId = SchemaFieldStart + ((LastSentRPCId + i) % RingBufferSize);
+			Schema_Object* RPCObject = Schema_AddObject(Fields, FieldId);
+			RPCs[i].WriteToSchemaObject(RPCObject);
 		}
-	}
 
-	TArray<Schema_FieldId> ClearedFields;
-	ClearedFields.SetNumUninitialized(Schema_GetComponentUpdateClearedFieldCount(Update));
-	Schema_GetComponentUpdateClearedFieldList(Update, ClearedFields.GetData());
-
-	for (Schema_FieldId ClearedId : ClearedFields)
-	{
-		if (ClearedId >= SchemaFieldStart && ClearedId < SchemaFieldStart + RingBufferSize)
-		{
-			RingBuffer[ClearedId - SchemaFieldStart].Reset();
-		}
-	}
-
-	if (Schema_GetUint32Count(Fields, GetLastSentRPCIdFieldId()) > 0)
-	{
-		LastSentRPCId = Schema_GetUint32(Fields, GetLastSentRPCIdFieldId());
+		LastSentRPCId += RPCs.Num();
+		Schema_AddUint64(Fields, GetLastSentRPCIdFieldId(), LastSentRPCId);
 	}
 }
 

@@ -34,6 +34,7 @@ class USpatialStaticComponentView;
 class USnapshotManager;
 class USpatialMetrics;
 class ASpatialMetricsDisplay;
+class USpatialRingBufferManager;
 
 class UEntityPool;
 
@@ -132,6 +133,8 @@ public:
 	USpatialMetrics* SpatialMetrics;
 	UPROPERTY()
 	ASpatialMetricsDisplay* SpatialMetricsDisplay;
+	UPROPERTY()
+	USpatialRingBufferManager* RingBufferManager;
 
 	Worker_EntityId WorkerEntityId = SpatialConstants::INVALID_ENTITY_ID;
 

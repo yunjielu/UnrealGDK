@@ -16,12 +16,21 @@ struct RPCRingBuffer
 {
 	RPCRingBuffer(uint32 InRingBufferSize, Schema_FieldId InSchemaFieldStart);
 
-	void ReadFromData(Schema_ComponentData* Data);
-	void ReadFromUpdate(Schema_ComponentUpdate* Update);
+	void ReadFromSchema(Schema_Object* Data);
+
+	// Always writes all the RPCs, even if need to overwrite.
+	void WriteToSchema(Schema_Object* Data, const TArray<RPCPayload>& RPCs);
+
+	// TODO: Get RPCs since given ID?
 
 	inline Schema_FieldId GetLastSentRPCIdFieldId()
 	{
 		return SchemaFieldStart + RingBufferSize;
+	}
+
+	int32 GetCapacity(uint64 LastExecutedRPCId)
+	{
+		return LastExecutedRPCId + RingBufferSize - LastSentRPCId;
 	}
 
 	// Passed in constructor, can't change.
@@ -30,7 +39,7 @@ struct RPCRingBuffer
 
 	TArray<TOptional<RPCPayload>> RingBuffer;
 
-	uint32 LastSentRPCId;
+	uint64 LastSentRPCId;
 };
 
 } // namespace SpatialGDK

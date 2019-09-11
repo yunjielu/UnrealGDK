@@ -258,21 +258,4 @@ private:
 	TMap<Worker_EntityId_Key, TWeakObjectPtr<USpatialNetConnection>> AuthorityPlayerControllerConnectionMap;
 
 	TMap<TPair<Worker_EntityId_Key, Worker_ComponentId>, PendingAddComponentWrapper> PendingDynamicSubobjectComponents;
-
-	// TODO: store this in actor channel? static component view?
-	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastHandledRPCIdMap;
-
-	struct InitialClientRPCs
-	{
-		bool ReadyToExecute() const
-		{
-			return bGainedClientAuthority && bReceivedServerEndpoint;
-		}
-
-		TArray<SpatialGDK::RPCPayload> RPCs;
-		uint32 LastSentRPCId = 0;
-		bool bGainedClientAuthority = false;
-		bool bReceivedServerEndpoint = false;
-	};
-	TMap<Worker_EntityId_Key, InitialClientRPCs> InitialClientRPCMap;
 };

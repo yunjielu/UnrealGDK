@@ -106,9 +106,6 @@ public:
 	// Creates an entity authoritative on this server worker, ensuring it will be able to receive updates for the GSM.
 	void CreateServerWorkerEntity(int AttemptCounter = 1);
 
-	void UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 LastExecutedRPCId);
-	void ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecutedRPCId, ESchemaComponentType RPCType);
-
 private:
 	// Actor Lifecycle
 	Worker_RequestId CreateEntity(USpatialActorChannel* Channel);
@@ -160,13 +157,4 @@ private:
 	FChannelsToUpdatePosition ChannelsToUpdatePosition;
 
 	TMap<Worker_EntityId_Key, TArray<FPendingRPC>> RPCsToPack;
-
-	// TODO: Store this in actor channel? Static component view?
-	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastClearedRPCIdMap;
-	TMap<Worker_EntityId_Key, TMap<ESchemaComponentType, uint32>> LastSentRPCIdMap;
-
-// Yes, this is hacky
-public:
-	void SetLastSentRPCId(Worker_EntityId Entity, ESchemaComponentType RPCType, uint32 LastSentRPCId);
-	void OnGainAuthorityRPCEndpoint(Worker_EntityId Entity, ESchemaComponentType RPCType);
 };

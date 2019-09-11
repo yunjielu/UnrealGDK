@@ -233,43 +233,8 @@ Worker_RequestId USpatialSender::CreateEntity(USpatialActorChannel* Channel)
 	InterestFactory InterestDataFactory(Actor, Info, NetDriver);
 	ComponentDatas.Add(InterestDataFactory.CreateInterestData());
 
-	ComponentDatas.Add(ClientRPCEndpoint().CreateRPCEndpointData());
-
-	//ComponentDatas.Add(ServerRPCEndpoint().CreateRPCEndpointData());
-	SetLastSentRPCId(EntityId, SCHEMA_ClientReliableRPC, 0);
-	SetLastSentRPCId(EntityId, SCHEMA_NetMulticastRPC, 0);
-	Worker_ComponentData ServerRPCEndpointData = ServerRPCEndpoint().CreateRPCEndpointData();
-	if (RPCsOnEntityCreation* QueuedRPCs = OutgoingOnCreateEntityRPCs.Find(Actor))
-	{
-		if (QueuedRPCs->HasRPCPayloadData())
-		{
-			if (QueuedRPCs->RPCs.Num() > SpatialConstants::RPC_RING_BUFFER_SIZE)
-			{
-				// TODO: Queue/drop RPC that don't fit
-				checkNoEntry();
-			}
-
-			Schema_Object* FieldsObject = Schema_GetComponentDataFields(ServerRPCEndpointData.schema_type);
-
-			uint32 RingBufferRPCId = 2;
-			for (const RPCPayload& Payload : QueuedRPCs->RPCs)
-			{
-				Schema_Object* RPCObject = Schema_AddObject(FieldsObject, RingBufferRPCId);
-
-				RPCPayload::WriteToSchemaObject(RPCObject, Payload.Offset, Payload.Index, Payload.PayloadData.GetData(), Payload.PayloadData.Num());
-
-				RingBufferRPCId++;
-			}
-
-			uint32& LastSentRPCId = LastSentRPCIdMap.FindOrAdd(EntityId).FindOrAdd(SCHEMA_ClientReliableRPC);
-			LastSentRPCId = QueuedRPCs->RPCs.Num();
-			Schema_AddUint32(FieldsObject, 1, LastSentRPCId);
-			Schema_AddUint32(FieldsObject, 12, 0);
-		}
-		OutgoingOnCreateEntityRPCs.Remove(Actor);
-	}
-	ComponentDatas.Add(ServerRPCEndpointData);
-
+	ComponentDatas.Add(ClientRPCEndpoint::CreateRPCEndpointData());
+	ComponentDatas.Add(ServerRPCEndpoint().CreateRPCEndpointData(OutgoingOnCreateEntityRPCs.Find(Actor)));
 	ComponentDatas.Add(ComponentFactory::CreateEmptyComponentData(SpatialConstants::NETMULTICAST_RPCS_COMPONENT_ID));
 
 	// Only add subobjects which are replicating
@@ -505,53 +470,6 @@ void USpatialSender::CreateServerWorkerEntity(int AttemptCounter)
 	Receiver->AddCreateEntityDelegate(RequestId, OnCreateWorkerEntityResponse);
 }
 
-void USpatialSender::UpdateLastExecutedRPC(Worker_EntityId EntityId, uint32 LastExecutedRPCId)
-{
-	UE_LOG(LogTemp, Log, TEXT("%s%d UpdateLastExecutedRPC(%lld, %u)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), GPlayInEditorID, EntityId, LastExecutedRPCId);
-
-	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
-	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
-	{
-		// Shouldn't happen?
-		return;
-	}
-
-	Worker_ComponentUpdate ComponentUpdate = {};
-	ComponentUpdate.component_id = RPCEndpointComponentId;
-	ComponentUpdate.schema_type = Schema_CreateComponentUpdate(RPCEndpointComponentId);
-	Schema_Object* FieldsObject = Schema_GetComponentUpdateFields(ComponentUpdate.schema_type);
-
-	Schema_AddUint32(FieldsObject, 12, LastExecutedRPCId);
-
-	Connection->SendComponentUpdate(EntityId, &ComponentUpdate);
-}
-
-void USpatialSender::ClearSentRPCs(Worker_EntityId EntityId, uint32 LastExecutedRPCId, ESchemaComponentType RPCType)
-{
-	UE_LOG(LogTemp, Log, TEXT("%s%d ClearSentRPCs(%lld, %u, %d)"), NetDriver->IsServer() ? TEXT("S") : TEXT("C"), GPlayInEditorID, EntityId, LastExecutedRPCId, RPCType);
-
-	Worker_ComponentId RPCEndpointComponentId = NetDriver->IsServer() ? SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID : SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID;
-	if (!StaticComponentView->HasAuthority(EntityId, RPCEndpointComponentId))
-	{
-		// Shouldn't happen?
-		return;
-	}
-
-	Worker_ComponentUpdate ComponentUpdate = {};
-	ComponentUpdate.component_id = RPCEndpointComponentId;
-	ComponentUpdate.schema_type = Schema_CreateComponentUpdate(RPCEndpointComponentId);
-
-	uint32& LastClearedRPCId = LastClearedRPCIdMap.FindOrAdd(EntityId).FindOrAdd(RPCType);
-	for (uint32 RPCIndex = LastClearedRPCId + 1; RPCIndex <= LastExecutedRPCId; RPCIndex++)
-	{
-		Schema_FieldId RingBufferFieldId = ((RPCIndex - 1) % SpatialConstants::RPC_RING_BUFFER_SIZE) + 2;
-		Schema_AddComponentUpdateClearedField(ComponentUpdate.schema_type, RingBufferFieldId);
-	}
-	LastClearedRPCId = LastExecutedRPCId;
-
-	Connection->SendComponentUpdate(EntityId, &ComponentUpdate);
-}
-
 void USpatialSender::SendComponentUpdates(UObject* Object, const FClassInfo& Info, USpatialActorChannel* Channel, const FRepChangeState* RepChanges, const FHandoverChangeState* HandoverChanges)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpatialSenderSendComponentUpdates);
@@ -673,16 +591,6 @@ TArray<Worker_InterestOverride> USpatialSender::CreateComponentInterestForActor(
 	return ComponentInterest;
 }
 
-void USpatialSender::SetLastSentRPCId(Worker_EntityId Entity, ESchemaComponentType RPCType, uint32 LastSentRPCId)
-{
-	LastSentRPCIdMap.FindOrAdd(Entity).FindOrAdd(RPCType) = LastSentRPCId;
-}
-
-void USpatialSender::OnGainAuthorityRPCEndpoint(Worker_EntityId Entity, ESchemaComponentType RPCType)
-{
-	LastClearedRPCIdMap.FindOrAdd(Entity).FindOrAdd(RPCType) = LastSentRPCIdMap.FindChecked(Entity).FindChecked(RPCType);
-}
-
 RPCPayload USpatialSender::CreateRPCPayloadFromParams(UObject* TargetObject, const FUnrealObjectRef& TargetObjectRef, UFunction* Function, int ReliableRPCIndex, void* Params)
 {
 	const FRPCInfo& RPCInfo = ClassInfoManager->GetRPCInfo(TargetObject, Function);
@@ -763,10 +671,16 @@ ERPCResult USpatialSender::SendRPCInternal(UObject* TargetObject, UFunction* Fun
 			{
 				// TODO: UNR-1437 - Add Support for Multicast RPCs on Entity Creation
 				UE_LOG(LogSpatialSender, Warning, TEXT("NetMulticast RPC %s triggered on Object %s too close to initial creation."), *Function->GetName(), *TargetObject->GetName());
+				return ERPCResult::InvalidRPCType;
 			}
 			check(NetDriver->IsServer());
 
-			OutgoingOnCreateEntityRPCs.FindOrAdd(TargetObject).RPCs.Add(Payload);
+			OutgoingOnCreateEntityRPCs.FindOrAdd(TargetObject).FindOrAdd(Function->HasAllFunctionFlags(FUNC_NetReliable) ? SCHEMA_ClientReliableRPC : SCHEMA_ClientUnreliableRPC).Add(Payload);
+			// TODO: Maybe we should actually immediately create entity?
+			// In native Unreal, in ProcessRemoteFunctionForChannel, it will call ReplicateActor if the channel hasn't been replicated yet.
+			// If any additional RPCs are called between creating the actor and receiving authority over endpoint, they should be queued.
+			// If the actor is destroyed before that queue is processed, and it has reliable RPCs, we should delay deleting the entity until we can send those RPCs.
+			// These cases can be worked around by not destroying the actor immediately, so probably not worth over-engineering for.
 #if !UE_BUILD_SHIPPING
 			NetDriver->SpatialMetrics->TrackSentRPC(Function, RPCInfo.Type, Payload.PayloadData.Num());
 #endif // !UE_BUILD_SHIPPING

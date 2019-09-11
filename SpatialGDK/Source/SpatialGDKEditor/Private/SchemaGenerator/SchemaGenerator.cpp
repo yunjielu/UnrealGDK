@@ -657,20 +657,25 @@ void GenerateRPCEndpoint(FCodeWriter& Writer, FString EndpointName, Worker_Compo
 		{
 			Writer.Printf("option<UnrealRPCPayload> {0}_rpc_{1} = {2};", GetRPCFieldPrefix(SentRPCType), i, FieldId++);
 		}
-		Writer.Printf("uint32 last_sent_{0}_rpc = {1};", GetRPCFieldPrefix(SentRPCType), FieldId++);
+		Writer.Printf("uint64 last_sent_{0}_rpc = {1};", GetRPCFieldPrefix(SentRPCType), FieldId++);
 
 		// TODO: Check that this matches expected field IDs.
 	}
 
 	for (ESchemaComponentType AckedRPCType : AckedRPCTypes)
 	{
-		Writer.Printf("uint32 last_executed_{0}_rpc = {1};", GetRPCFieldPrefix(AckedRPCType), FieldId++);
+		Writer.Printf("uint64 last_executed_{0}_rpc = {1};", GetRPCFieldPrefix(AckedRPCType), FieldId++);
 	}
 
-	// CrossServer RPC uses commands, only exists on ServerRPCEndpoint
 	if (ComponentId == SpatialConstants::SERVER_RPC_ENDPOINT_COMPONENT_ID)
 	{
+		// CrossServer RPC uses commands, only exists on ServerRPCEndpoint
 		Writer.Print("command Void server_to_server_rpc_command(UnrealRPCPayload);");
+	}
+	else if (ComponentId == SpatialConstants::CLIENT_RPC_ENDPOINT_COMPONENT_ID)
+	{
+		// Indicate last executed multicast RPC to avoid executing them multiple times.
+		Writer.Printf("uint64 last_executed_multicast_rpc = {0};", FieldId++);
 	}
 
 	Writer.Outdent().Print("}");
