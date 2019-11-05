@@ -32,7 +32,8 @@ namespace ELoadBalanceStrategy
 {
 	enum Type
 	{
-		Grid = 0
+		Grid = 0,
+		Voronoi
 	};
 }
 

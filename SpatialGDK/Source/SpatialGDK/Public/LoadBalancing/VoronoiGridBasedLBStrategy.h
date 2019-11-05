@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LoadBalancing/AbstractLBStrategy.h"
-#include "GridBasedLBStrategy.generated.h"
+#include "VoronoiGridBasedLBStrategy.generated.h"
 
 /**
  * A load balancing strategy that divides the world into a grid.
@@ -17,13 +17,16 @@
  * Intended Usage: Create a data-only blueprint subclass and change
  * the Cols, Rows, WorldWidth, WorldHeight.
  */
+
+DECLARE_LOG_CATEGORY_EXTERN(LogVoronoiGridBasedLBStrategy, Log, All);
+
 UCLASS(Blueprintable)
-class SPATIALGDK_API UGridBasedLBStrategy : public UAbstractLBStrategy
+class SPATIALGDK_API UVoronoiGridBasedLBStrategy : public UAbstractLBStrategy
 {
 	GENERATED_BODY()
 
 public:
-	UGridBasedLBStrategy();
+	UVoronoiGridBasedLBStrategy();
 
 /* UAbstractLBStrategy Interface */
 	virtual void Init(const class USpatialNetDriver* InNetDriver) override;
@@ -35,23 +38,29 @@ public:
 /* End UAbstractLBStrategy Interface */
 
 protected:
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), category="LoadBalancing")
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
 	uint32 Rows;
 
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), category = "LoadBalancing")
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
 	uint32 Cols;
 
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), category = "LoadBalancing")
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
 	float WorldWidth;
 
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), category = "LoadBalancing")
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
 	float WorldHeight;
 
 private:
 
-	TArray<VirtualWorkerId> VirtualWorkerIds;
+	float WorldWidthMin;
+	float WorldHeightMin;
 
-	TArray<FBox2D> WorkerCells;
+	TSet<VirtualWorkerId> VirtualWorkerIds;
+	TArray<VirtualWorkerId> VirtualWorkerIdsGrid;
+	TMap<VirtualWorkerId, FVector2D> VirtualWorkerPositions;
 
-	static bool IsInside(const FBox2D& Box, const FVector2D& Location);
+	int32 PositionToCellIndex(const FVector2D& Position) const;
+	VirtualWorkerId FindBestVirtualWorker(const FVector2D& Position) const;
+
+	void PrintVirtualWorkerIdsGrid() const;
 };

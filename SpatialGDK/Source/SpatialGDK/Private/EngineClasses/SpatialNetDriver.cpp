@@ -31,6 +31,7 @@
 #include "Interop/SpatialSender.h"
 #include "LoadBalancing/AbstractLBStrategy.h"
 #include "LoadBalancing/GridBasedLBStrategy.h"
+#include "LoadBalancing/VoronoiGridBasedLBStrategy.h"
 #include "Schema/AlwaysRelevant.h"
 #include "SpatialConstants.h"
 #include "SpatialGDKSettings.h"
@@ -333,6 +334,9 @@ void USpatialNetDriver::CreateAndInitializeCoreClasses()
 		// TODO: timgibson - get from config data for a map?
 		switch (SpatialSettings->LoadBalanceStrategy)
 		{
+		case ELoadBalanceStrategy::Voronoi:
+			LoadBalanceStrategy = NewObject<UVoronoiGridBasedLBStrategy>();
+			break;
 		case ELoadBalanceStrategy::Grid:
 		default:
 			LoadBalanceStrategy = NewObject<UGridBasedLBStrategy>();
