@@ -36,6 +36,8 @@ public:
 	virtual VirtualWorkerId WhoShouldHaveAuthority(const AActor& Actor) const override;
 /* End UAbstractLBStrategy Interface */
 
+	void PrintVirtualWorkerIdGrid() const;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), category="LoadBalancing")
 	uint32 Rows;
@@ -57,8 +59,6 @@ protected:
 	void AddVirtualWorkerIdToGrid(VirtualWorkerId VirtualWorkerId);
 
 	int32 WorldPositionToCellIndex(const FVector2D& Position) const;
-
-	void PrintVirtualWorkerIdGrid() const;
 
 private:
 
