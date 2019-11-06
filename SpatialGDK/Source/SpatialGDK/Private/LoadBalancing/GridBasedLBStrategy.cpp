@@ -23,7 +23,6 @@ void UGridBasedLBStrategy::Init(const USpatialNetDriver* InNetDriver)
 	Super::Init(InNetDriver);
 	VirtualWorkerIdGrid.Reserve(Rows*Cols);
 	InitVirtualWorkerIdGrid();
-	PrintVirtualWorkerIdGrid();
 }
 
 void UGridBasedLBStrategy::AddVirtualWorkerIdToGrid(VirtualWorkerId VirtualWorkerId)
@@ -82,10 +81,10 @@ int32 UGridBasedLBStrategy::WorldPositionToCellIndex(const FVector2D& Location) 
 
 void UGridBasedLBStrategy::PrintVirtualWorkerIdGrid() const
 {
-	const size_t Size = VirtualWorkerIdGrid.Num();
+	FString Buffer;
 
-	FString Buffer = TEXT("");
-	for (int i = 0; i < Size; ++i)
+	const int32 Size = VirtualWorkerIdGrid.Num();
+	for (int32 i = 0; i < Size; ++i)
 	{
 		Buffer.Append(FString::Printf(TEXT("%d, "), VirtualWorkerIdGrid[i]));
 		if ((i + 1) % Cols == 0)
