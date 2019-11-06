@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "LoadBalancing/AbstractLBStrategy.h"
+#include "LoadBalancing/GridBasedLBStrategy.h"
 #include "VoronoiGridBasedLBStrategy.generated.h"
 
 /**
@@ -18,10 +17,8 @@
  * the Cols, Rows, WorldWidth, WorldHeight.
  */
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVoronoiGridBasedLBStrategy, Log, All);
-
 UCLASS(Blueprintable)
-class SPATIALGDK_API UVoronoiGridBasedLBStrategy : public UAbstractLBStrategy
+class SPATIALGDK_API UVoronoiGridBasedLBStrategy : public UGridBasedLBStrategy
 {
 	GENERATED_BODY()
 
@@ -30,37 +27,16 @@ public:
 
 /* UAbstractLBStrategy Interface */
 	virtual void Init(const class USpatialNetDriver* InNetDriver) override;
-
-	virtual TSet<VirtualWorkerId> GetVirtualWorkerIds() const;
-
-	virtual bool ShouldRelinquishAuthority(const AActor& Actor) const override;
-	virtual VirtualWorkerId WhoShouldHaveAuthority(const AActor& Actor) const override;
 /* End UAbstractLBStrategy Interface */
 
 protected:
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
-	uint32 Rows;
 
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
-	uint32 Cols;
-
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
-	float WorldWidth;
-
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"), Category = "Load Balancing")
-	float WorldHeight;
+/* UGridBasedLBStrategy Interface */
+	virtual void InitVirtualWorkerIdGrid() override;
+/* End UGridBasedLBStrategy Interface */
 
 private:
 
-	float WorldWidthMin;
-	float WorldHeightMin;
-
-	TSet<VirtualWorkerId> VirtualWorkerIds;
-	TArray<VirtualWorkerId> VirtualWorkerIdsGrid;
 	TMap<VirtualWorkerId, FVector2D> VirtualWorkerPositions;
-
-	int32 PositionToCellIndex(const FVector2D& Position) const;
 	VirtualWorkerId FindBestVirtualWorker(const FVector2D& Position) const;
-
-	void PrintVirtualWorkerIdsGrid() const;
 };
