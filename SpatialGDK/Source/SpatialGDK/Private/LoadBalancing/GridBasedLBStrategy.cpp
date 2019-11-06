@@ -5,58 +5,31 @@
 #include "EngineClasses/SpatialNetDriver.h"
 #include "Utils/SpatialActorUtils.h"
 
+DEFINE_LOG_CATEGORY(LogGridBasedLBStrategy);
+
 UGridBasedLBStrategy::UGridBasedLBStrategy()
 	: Super()
-	, Rows(1)
-	, Cols(1)
+	, Rows(10)
+	, Cols(10)
 	, WorldWidth(10000.f)
 	, WorldHeight(10000.f)
 {
+	WorldWidthMin = -(WorldWidth / 2.f);
+	WorldHeightMin = -(WorldHeight / 2.f);
 }
 
 void UGridBasedLBStrategy::Init(const USpatialNetDriver* InNetDriver)
 {
 	Super::Init(InNetDriver);
-
-	for (uint32 i = 1; i <= Rows * Cols; i++)
-	{
-		VirtualWorkerIds.Add(i);
-	}
-
-	const float WorldWidthMin = -(WorldWidth / 2.f);
-	const float WorldHeightMin = -(WorldHeight / 2.f);
-
-	const float ColumnWidth = WorldWidth / Cols;
-	const float RowHeight = WorldHeight / Rows;
-
-	float XMin = WorldWidthMin;
-	float YMin = WorldHeightMin;
-	float XMax, YMax;
-
-	for (uint32 Col = 0; Col < Cols; ++Col)
-	{
-		XMax = XMin + ColumnWidth;
-
-		for (uint32 Row = 0; Row < Rows; ++Row)
-		{
-			YMax = YMin + RowHeight;
-
-			FVector2D Min(XMin, YMin);
-			FVector2D Max(XMax, YMax);
-			FBox2D Cell(Min, Max);
-			WorkerCells.Add(Cell);
-
-			YMin = YMax;
-		}
-
-		YMin = WorldHeightMin;
-		XMin = XMax;
-	}
+	VirtualWorkerIdGrid.Reserve(Rows*Cols);
+	InitVirtualWorkerIdGrid();
+	PrintVirtualWorkerIdGrid();
 }
 
-TSet<VirtualWorkerId> UGridBasedLBStrategy::GetVirtualWorkerIds() const
+void UGridBasedLBStrategy::AddVirtualWorkerIdToGrid(VirtualWorkerId VirtualWorkerId)
 {
-	return TSet<VirtualWorkerId>(VirtualWorkerIds);
+	VirtualWorkerIds.Add(VirtualWorkerId);
+	VirtualWorkerIdGrid.Add(VirtualWorkerId);
 }
 
 bool UGridBasedLBStrategy::ShouldRelinquishAuthority(const AActor& Actor) const
@@ -68,8 +41,13 @@ bool UGridBasedLBStrategy::ShouldRelinquishAuthority(const AActor& Actor) const
 
 	const FVector2D Actor2DLocation = FVector2D(SpatialGDK::GetActorSpatialPosition(&Actor));
 
+	int32 CellIndex = WorldPositionToCellIndex(Actor2DLocation);
+	if (VirtualWorkerIdGrid.Num() <= CellIndex)
+	{
+		return false;
+	}
 
-	return !IsInside(WorkerCells[LocalVirtualWorkerId - 1], Actor2DLocation);
+	return LocalVirtualWorkerId != VirtualWorkerIdGrid[CellIndex];
 }
 
 VirtualWorkerId UGridBasedLBStrategy::WhoShouldHaveAuthority(const AActor& Actor) const
@@ -79,21 +57,41 @@ VirtualWorkerId UGridBasedLBStrategy::WhoShouldHaveAuthority(const AActor& Actor
 		return SpatialConstants::INVALID_VIRTUAL_WORKER_ID;
 	}
 
-	const FVector2D Actor2DLocation = FVector2D(SpatialGDK::GetActorSpatialPosition(&Actor));
-
-	for (int i = 0; i < WorkerCells.Num(); i++)
+	FVector2D Actor2DLocation = FVector2D(SpatialGDK::GetActorSpatialPosition(&Actor));
+	int32 CellIndex = WorldPositionToCellIndex(Actor2DLocation);
+	if (VirtualWorkerIdGrid.Num() > CellIndex)
 	{
-		if (IsInside(WorkerCells[i], Actor2DLocation))
-		{
-			return VirtualWorkerIds[i];
-		}
+		return VirtualWorkerIdGrid[CellIndex];
 	}
 
 	return SpatialConstants::INVALID_VIRTUAL_WORKER_ID;
 }
 
-bool UGridBasedLBStrategy::IsInside(const FBox2D& Box, const FVector2D& Location)
+int32 UGridBasedLBStrategy::WorldPositionToCellIndex(const FVector2D& Location) const
 {
-	return Location.X >= Box.Min.X && Location.Y >= Box.Min.Y
-		&& Location.X < Box.Max.X && Location.Y < Box.Max.Y;
+	float ProgressY = (Location.Y - WorldWidthMin) / WorldWidth;
+	int32 CellX = ProgressY * Cols;
+	FMath::Clamp(CellX, 0, static_cast<int32>(Cols));
+
+	float ProgressX = (Location.X - WorldHeightMin) / WorldHeight;
+	int32 CellY = ProgressX * Rows;
+	FMath::Clamp(CellY, 0, static_cast<int32>(Rows));
+
+	return CellY * Cols + CellX;
+}
+
+void UGridBasedLBStrategy::PrintVirtualWorkerIdGrid() const
+{
+	const size_t Size = VirtualWorkerIdGrid.Num();
+
+	FString Buffer = TEXT("");
+	for (int i = 0; i < Size; ++i)
+	{
+		Buffer.Append(FString::Printf(TEXT("%d, "), VirtualWorkerIdGrid[i]));
+		if ((i + 1) % Cols == 0)
+		{
+			UE_LOG(LogGridBasedLBStrategy, Log, TEXT("%s"), *Buffer);
+			Buffer.Empty();
+		}
+	}
 }

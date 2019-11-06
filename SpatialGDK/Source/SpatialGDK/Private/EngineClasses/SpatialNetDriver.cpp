@@ -30,7 +30,7 @@
 #include "Interop/SpatialReceiver.h"
 #include "Interop/SpatialSender.h"
 #include "LoadBalancing/AbstractLBStrategy.h"
-#include "LoadBalancing/GridBasedLBStrategy.h"
+#include "LoadBalancing/StandardGridBasedLBStrategy.h"
 #include "LoadBalancing/VoronoiGridBasedLBStrategy.h"
 #include "Schema/AlwaysRelevant.h"
 #include "SpatialConstants.h"
@@ -339,7 +339,7 @@ void USpatialNetDriver::CreateAndInitializeCoreClasses()
 			break;
 		case ELoadBalanceStrategy::Grid:
 		default:
-			LoadBalanceStrategy = NewObject<UGridBasedLBStrategy>();
+			LoadBalanceStrategy = NewObject<UStandardGridBasedLBStrategy>();
 			break;
 		}
 
