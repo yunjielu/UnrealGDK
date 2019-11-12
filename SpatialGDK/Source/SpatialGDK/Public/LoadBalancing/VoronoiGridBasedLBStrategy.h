@@ -5,17 +5,17 @@
 #include "LoadBalancing/GridBasedLBStrategy.h"
 #include "VoronoiGridBasedLBStrategy.generated.h"
 
-/**
- * A load balancing strategy that divides the world into a grid.
- * Divides the load between Rows * Cols number of workers, each handling a
- * square of the world (WorldWidth / Cols)cm by (WorldHeight / Rows)cm
- *
- * Given a Point, for each Cell:
- * Point is inside Cell iff Min(Cell) <= Point < Max(Cell)
- *
- * Intended Usage: Create a data-only blueprint subclass and change
- * the Cols, Rows, WorldWidth, WorldHeight.
- */
+USTRUCT()
+struct FPointInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, Category = "Voronoi Load Balancing")
+	float X;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Voronoi Load Balancing")
+	float Y;
+};
 
 UCLASS(Blueprintable)
 class SPATIALGDK_API UVoronoiGridBasedLBStrategy : public UGridBasedLBStrategy
@@ -30,6 +30,10 @@ public:
 /* End UAbstractLBStrategy Interface */
 
 protected:
+
+	/* Points configuration. */
+	UPROPERTY(EditDefaultsOnly, Category = "Voronoi Load Balancing")
+	TArray<FPointInfo> Points;
 
 /* UGridBasedLBStrategy Interface */
 	virtual void InitVirtualWorkerIdGrid() override;

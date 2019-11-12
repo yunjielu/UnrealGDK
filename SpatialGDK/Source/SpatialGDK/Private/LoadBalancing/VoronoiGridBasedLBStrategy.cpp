@@ -18,13 +18,11 @@ void UVoronoiGridBasedLBStrategy::Init(const USpatialNetDriver* InNetDriver)
 
 void UVoronoiGridBasedLBStrategy::InitVirtualWorkerIdGrid()
 {
-	const static TArray<FVector2D> Points = { FVector2D(-5000.f, -5000.f), FVector2D(5000.f, 5000.f), FVector2D(5000.f, -5000.f) , FVector2D(0.f, 0.f) };
-
 	const int32 Size = Points.Num();
 	for (int32 i = 0; i < Size; ++i)
 	{
-		const FVector2D& Position = Points[i];
-		VirtualWorkerPositions.Add(i + 1, Position);
+		const FPointInfo& Position = Points[i];
+		VirtualWorkerPositions.Add(i + 1, FVector2D(Position.X, Position.Y));
 	}
 
 	const float ColumnWidth = WorldWidth / Cols;
