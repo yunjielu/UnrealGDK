@@ -33,7 +33,7 @@ public:
 	// the next mapping update.
 	const FString* GetPhysicalWorkerForVirtualWorker(VirtualWorkerId id);
 
-	// On receiving an version of the translation state, apply that to the internal mapping.
+	// On receiving a version of the translation state, apply that to the internal mapping.
 	void ApplyVirtualWorkerManagerData(Schema_Object* ComponentObject);
 
 	void OnComponentUpdated(const Worker_ComponentUpdateOp& Op);
@@ -53,17 +53,10 @@ private:
 	bool bWorkerEntityQueryInFlight;
 
 	bool bIsReady;
-	uint32 DesiredVirtualWorkerCount;
 
 	// The WorkerId of this worker, for logging purposes.
 	FString WorkerId;
 
+	// Serialization and deserialization of the mapping.
 	void ApplyMappingFromSchema(Schema_Object* Object);
 	void WriteMappingToSchema(Schema_Object* Object);
-
-	void QueryForWorkerEntities();
-	void ConstructVirtualWorkerMappingFromQueryResponse(const Worker_EntityQueryResponseOp& Op);
-	void SendVirtualWorkerMappingUpdate();
-
-	void AssignWorker(const FString& WorkerId);
-};
