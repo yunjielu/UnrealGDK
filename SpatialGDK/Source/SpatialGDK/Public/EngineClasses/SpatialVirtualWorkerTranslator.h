@@ -60,3 +60,13 @@ private:
 	// Serialization and deserialization of the mapping.
 	void ApplyMappingFromSchema(Schema_Object* Object);
 	void WriteMappingToSchema(Schema_Object* Object);
+
+	// The following methods are used to query the Runtime for all worker entities and update the mapping
+	// based on the response.
+	void QueryForWorkerEntities();
+	void WorkerEntityQueryDelegate(const Worker_EntityQueryResponseOp& Op);
+	void ConstructVirtualWorkerMappingFromQueryResponse(const Worker_EntityQueryResponseOp& Op);
+	void SendVirtualWorkerMappingUpdate();
+
+	void AssignWorker(const FString& WorkerId);
+};
