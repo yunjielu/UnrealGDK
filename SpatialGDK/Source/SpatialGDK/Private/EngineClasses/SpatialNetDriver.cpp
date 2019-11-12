@@ -20,7 +20,6 @@
 #include "EngineClasses/SpatialNetConnection.h"
 #include "EngineClasses/SpatialPackageMapClient.h"
 #include "EngineClasses/SpatialPendingNetGame.h"
-#include "EngineClasses/SpatialLoadBalanceEnforcer.h"
 #include "Interop/Connection/SpatialWorkerConnection.h"
 #include "Interop/GlobalStateManager.h"
 #include "Interop/SnapshotManager.h"
@@ -29,9 +28,6 @@
 #include "Interop/SpatialPlayerSpawner.h"
 #include "Interop/SpatialReceiver.h"
 #include "Interop/SpatialSender.h"
-#include "LoadBalancing/AbstractLBStrategy.h"
-#include "LoadBalancing/StandardGridBasedLBStrategy.h"
-#include "LoadBalancing/VoronoiGridBasedLBStrategy.h"
 #include "Schema/AlwaysRelevant.h"
 #include "SpatialConstants.h"
 #include "SpatialGDKSettings.h"
@@ -59,8 +55,6 @@ DEFINE_STAT(STAT_SpatialActorsChanged);
 
 USpatialNetDriver::USpatialNetDriver(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, LoadBalanceEnforcer(nullptr)
-	, LoadBalanceStrategy(nullptr)
 	, bAuthoritativeDestruction(true)
 	, bConnectAsClient(false)
 	, bPersistSpatialConnection(true)
@@ -70,13 +64,6 @@ USpatialNetDriver::USpatialNetDriver(const FObjectInitializer& ObjectInitializer
 	, NextRPCIndex(0)
 	, TimeWhenPositionLastUpdated(0.f)
 {
-#if ENGINE_MINOR_VERSION >= 23
-	// Due to changes in 4.23, we now use an outdated flow in ComponentReader::ApplySchemaObject
-	// Native Unreal now iterates over all commands on clients, and no longer has access to a BaseHandleToCmdIndex
-	// in the RepLayout, the below change forces its creation on clients, but this is a workaround
-	// TODO: UNR-2375
-	bMaySendProperties = true;
-#endif
 }
 
 bool USpatialNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FURL& URL, bool bReuseAddressAndPort, FString& Error)
@@ -320,46 +307,21 @@ void USpatialNetDriver::CreateAndInitializeCoreClasses()
 	StaticComponentView = NewObject<USpatialStaticComponentView>();
 	SnapshotManager = NewObject<USnapshotManager>();
 	SpatialMetrics = NewObject<USpatialMetrics>();
-
-	const USpatialGDKSettings* SpatialSettings = GetDefault<USpatialGDKSettings>();
+	VirtualWorkerTranslator = MakeUnique<SpatialVirtualWorkerTranslator>();
 
 #if !UE_BUILD_SHIPPING
 	// If metrics display is enabled, spawn a singleton actor to replicate the information to each client
-	if (IsServer() && SpatialSettings->bEnableMetricsDisplay)
+	if (IsServer() && GetDefault<USpatialGDKSettings>()->bEnableMetricsDisplay)
 	{
 		SpatialMetricsDisplay = GetWorld()->SpawnActor<ASpatialMetricsDisplay>();
 	}
 #endif
 
-	if (IsServer() && SpatialSettings->bEnableUnrealLoadBalancer)
-	{
-		VirtualWorkerTranslator = MakeUnique<SpatialVirtualWorkerTranslator>();
-		VirtualWorkerTranslator->Init(this);
-		LoadBalanceEnforcer = NewObject<USpatialLoadBalanceEnforcer>();
-		LoadBalanceEnforcer->Init(this, VirtualWorkerTranslator.Get());
-
-		// TODO: timgibson - get from config data for a map?
-		switch (SpatialSettings->LoadBalanceStrategy)
-		{
-		case ELoadBalanceStrategy::Voronoi:
-			LoadBalanceStrategy = NewObject<UVoronoiGridBasedLBStrategy>();
-			break;
-		case ELoadBalanceStrategy::Grid:
-		default:
-			LoadBalanceStrategy = NewObject<UStandardGridBasedLBStrategy>();
-			break;
-		}
-
-		LoadBalanceStrategy->Init(this);
-	}
-
 	Dispatcher->Init(Receiver, StaticComponentView, SpatialMetrics);
 	Sender->Init(this, &TimerManager);
 	Receiver->Init(this, &TimerManager);
 	GlobalStateManager->Init(this, &TimerManager);
-	// TODO(zoning): This currently hard codes the desired number of virtual workers. This should be retrieved
-	// from the configuration.
-	VirtualWorkerTranslator->SetDesiredVirtualWorkerCount(2);
+	VirtualWorkerTranslator->Init(this);
 	SnapshotManager->Init(this);
 	PlayerSpawner->Init(this, &TimerManager);
 	SpatialMetrics->Init(this);
@@ -380,14 +342,7 @@ void USpatialNetDriver::CreateServerSpatialOSNetConnection()
 	check(NetConnection);
 
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
-	// This is just a fake address so that Unreal doesn't ensure-crash on disconnecting from SpatialOS
-	// See UNetDriver::RemoveClientConnection for more details, but basically there is a TMap which uses internet addresses as the key and an unitialised
-	// internet address for a connection causes the TMap.Find to fail
 	TSharedRef<FInternetAddr> FromAddr = SocketSubsystem->CreateInternetAddr();
-	bool bIsAddressValid = false;
-	FromAddr->SetIp(*SpatialConstants::LOCAL_HOST, bIsAddressValid);
-
-	check(bIsAddressValid);
 
 	// Each connection stores a URL with various optional settings (host, port, map, netspeed...)
 	// We currently don't make use of any of these as some are meaningless in a SpatialOS world, and some are less of a priority.
@@ -1214,14 +1169,6 @@ void USpatialNetDriver::ProcessRPC(AActor* Actor, UObject* SubObject, UFunction*
 		GetOrCreateSpatialActorChannel(CallingObject);
 	}
 
-	// If this object's class isn't present in the schema database, we will log an error and tell the
-	// game to quit. Unfortunately, there's one more tick after that during which RPCs could be called.
-	// Check that the class is supported so we don't crash in USpatialClassInfoManager::GetRPCInfo.
-	if (!Sender->ValidateOrExit_IsSupportedClass(CallingObject->GetClass()->GetPathName()))
-	{
-		return;
-	}
-
 	int ReliableRPCIndex = 0;
 	if (GetDefault<USpatialGDKSettings>()->bCheckRPCOrder)
 	{
@@ -1387,11 +1334,6 @@ void USpatialNetDriver::TickDispatch(float DeltaTime)
 		if (SpatialMetrics != nullptr && GetDefault<USpatialGDKSettings>()->bEnableMetrics)
 		{
 			SpatialMetrics->TickMetrics();
-		}
-
-		if (LoadBalanceEnforcer != nullptr)
-		{
-			LoadBalanceEnforcer->Tick();
 		}
 	}
 }
@@ -1563,8 +1505,8 @@ bool USpatialNetDriver::CreateSpatialNetConnection(const FURL& InUrl, const FUni
 	// We may not need to keep it in the future, but for now it looks like path of least resistance is to have one UPlayer (UConnection) per player.
 	// We use an internal counter to give each client a unique IP address for Unreal's internal bookkeeping.
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
-	TSharedRef<FInternetAddr> FromAddr = SocketSubsystem->CreateInternetAddr();
-	FromAddr->SetIp(UniqueClientIpAddressCounter++);
+	TSharedRef<FInternetAddr> FromAddr = SocketSubsystem->CreateInternetAddr(UniqueClientIpAddressCounter);
+	UniqueClientIpAddressCounter++;
 
 	SpatialConnection->InitRemoteConnection(this, nullptr, InUrl, *FromAddr, USOCK_Open);
 	Notify->NotifyAcceptedConnection(SpatialConnection);
@@ -1865,13 +1807,6 @@ USpatialActorChannel* USpatialNetDriver::GetOrCreateSpatialActorChannel(UObject*
 			TargetActor = Cast<AActor>(TargetObject->GetOuter());
 		}
 		check(TargetActor);
-
-		if (USpatialActorChannel* ActorChannel = GetActorChannelByEntityId(PackageMap->GetEntityIdFromObject(TargetActor)))
-		{
-			// This can happen if schema database is out of date and had no entry for a static subobject.
-			UE_LOG(LogSpatialOSNetDriver, Warning, TEXT("GetOrCreateSpatialActorChannel: No channel for target object but channel already present for actor. Target object: %s, actor: %s"), *TargetObject->GetPathName(), *TargetActor->GetPathName());
-			return ActorChannel;
-		}
 		Channel = CreateSpatialActorChannel(TargetActor);
 	}
 #if !UE_BUILD_SHIPPING
@@ -1983,11 +1918,7 @@ USpatialActorChannel* USpatialNetDriver::CreateSpatialActorChannel(AActor* Actor
 		}
 		else
 		{
-#if ENGINE_MINOR_VERSION <= 22
 			Channel->SetChannelActor(Actor);
-#else
-			Channel->SetChannelActor(Actor, ESetChannelActorFlags::None);
-#endif
 		}
 	}
 

@@ -26,7 +26,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSpatialReceiver, Log, All);
 class USpatialNetConnection;
 class USpatialSender;
 class UGlobalStateManager;
-class USpatialLoadBalanceEnforcer;
 
 struct PendingAddComponentWrapper
 {
@@ -230,9 +229,6 @@ private:
 
 	UPROPERTY()
 	UGlobalStateManager* GlobalStateManager;
-
-	UPROPERTY()
-	USpatialLoadBalanceEnforcer* LoadBalanceEnforcer;
 
 	FTimerManager* TimerManager;
 

@@ -35,8 +35,6 @@ class USpatialStaticComponentView;
 class USnapshotManager;
 class USpatialMetrics;
 class ASpatialMetricsDisplay;
-class USpatialLoadBalanceEnforcer;
-class UAbstractLBStrategy;
 
 class UEntityPool;
 
@@ -145,14 +143,8 @@ public:
 	USpatialMetrics* SpatialMetrics;
 	UPROPERTY()
 	ASpatialMetricsDisplay* SpatialMetricsDisplay;
-	UPROPERTY()
-	USpatialLoadBalanceEnforcer* LoadBalanceEnforcer;
-	UPROPERTY()
-	UAbstractLBStrategy* LoadBalanceStrategy;
 
 	Worker_EntityId WorkerEntityId = SpatialConstants::INVALID_ENTITY_ID;
-
-	TUniquePtr<SpatialVirtualWorkerTranslator> VirtualWorkerTranslator;
 
 	TMap<UClass*, TPair<AActor*, USpatialActorChannel*>> SingletonActorChannels;
 
@@ -192,6 +184,7 @@ public:
 #endif
 
 private:
+	TUniquePtr<SpatialVirtualWorkerTranslator> VirtualWorkerTranslator;
 	TUniquePtr<FSpatialOutputDevice> SpatialOutputDevice;
 
 	TMap<Worker_EntityId_Key, USpatialActorChannel*> EntityToActorChannel;
