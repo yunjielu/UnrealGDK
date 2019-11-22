@@ -4,13 +4,22 @@
 
 #include "CoreMinimal.h"
 
+#include "Schema/RPCPayload.h"
+
+#include <WorkerSDK/improbable/c_schema.h>
+#include <WorkerSDK/improbable/c_worker.h>
+
+DECLARE_LOG_CATEGORY_EXTERN(LogSpatialRPCService, Log, All);
+
 enum class RPCType
 {
 	ClientReliable,
 	ClientUnreliable,
 	ServerReliable,
 	ServerUnreliable,
-	Multicast
+	Multicast,
+
+	Count
 };
 
 struct EntityRPCType
@@ -23,9 +32,14 @@ struct EntityRPCType
 	Worker_EntityId EntityId;
 	RPCType Type;
 
+	inline bool operator==(const EntityRPCType& Other)
+	{
+		return EntityId == Other.EntityId && Type == Other.Type;
+	}
+
 	friend inline uint32 GetTypeHash(EntityRPCType Value)
 	{
-		return GetTypeHash(static_cast<int64>(Value.EntityId)) + 977u * GetTypeHash(Value.Type);
+		return GetTypeHash(static_cast<int64>(Value.EntityId)) + 977u * GetTypeHash(static_cast<uint32>(Value.Type));
 	}
 };
 
@@ -38,6 +52,11 @@ struct EntityComponentId
 
 	Worker_EntityId EntityId;
 	Worker_ComponentId ComponentId;
+
+	inline bool operator==(const EntityRPCType& Other)
+	{
+		return EntityId == Other.EntityId && ComponentId == Other.ComponentId;
+	}
 
 	friend inline uint32 GetTypeHash(EntityComponentId Value)
 	{
@@ -57,13 +76,19 @@ struct RingBufferDescriptor
 		return SchemaFieldStart + RingBufferSize;
 	}
 
-	inline int32 GetCapacity(uint64 LastAckedRPCId, uint64 LastSentRPCId)
+	inline bool HasCapacity(uint64 LastAckedRPCId, uint64 NewRPCId)
 	{
-		return LastAckedRPCId + RingBufferSize - LastSentRPCId;
+		return LastAckedRPCId + RingBufferSize >= NewRPCId;
 	}
 
+	Worker_ComponentId RingBufferComponentId;
 	uint32 RingBufferSize;
 	Schema_FieldId SchemaFieldStart;
+
+	Worker_ComponentId AckComponentId;
+	Schema_FieldId AckFieldId;
+
+	bool bShouldQueueOverflowed;
 };
 
 class SpatialRPCService
@@ -75,7 +100,12 @@ public:
 
 	void PushRPC(Worker_EntityId EntityId, RPCType Type, RPCPayload Payload);
 
-	TArray<Worker_ComponentUpdate> GetRPCsAndAcksToSend();
+	struct UpdateToSend
+	{
+		Worker_EntityId EntityId;
+		Worker_ComponentUpdate Update;
+	};
+	TArray<UpdateToSend> GetRPCsAndAcksToSend();
 	TArray<Worker_ComponentData> GetRPCComponentsOnEntityCreation(Worker_EntityId EntityId);
 
 	// Will also store acked IDs locally.
@@ -96,6 +126,8 @@ public:
 private:
 	void ExtractRPCsForType(RPCType Type);
 
+	void AddOverflowedRPC(EntityComponentId EntityComponent, RPCPayload Payload);
+
 private:
 	ExtractRPCCallbackType ExtractRPCCallback;
 	const USpatialStaticComponentView* View;
@@ -110,6 +142,7 @@ private:
 	TMap<EntityComponentId, Schema_ComponentData*> PendingRPCsOnEntityCreation;
 
 	TMap<EntityComponentId, Schema_ComponentUpdate*> PendingComponentUpdatesToSend;
+	TMap<EntityComponentId, TArray<RPCPayload>> OverflowedRPCs;
 };
 
 
