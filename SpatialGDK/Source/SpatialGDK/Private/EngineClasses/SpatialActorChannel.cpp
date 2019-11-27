@@ -1094,15 +1094,34 @@ void USpatialActorChannel::UpdateSpatialPosition()
 		}
 	}
 
-	// Check that the Actor has moved sufficiently far to be updated
-	const float SpatialPositionThresholdSquared = FMath::Square(GetDefault<USpatialGDKSettings>()->PositionDistanceThreshold);
-	FVector ActorSpatialPosition = GetActorSpatialPosition(Actor);
-	if (FVector::DistSquared(ActorSpatialPosition, LastPositionSinceUpdate) < SpatialPositionThresholdSquared)
+	const FVector ActorSpatialPosition = GetActorSpatialPosition(Actor);
+	const USpatialGDKSettings* Settings = GetDefault<USpatialGDKSettings>();
+	if (Settings->bQuantizeSpatialPositionUpdates)
 	{
-		return;
+		const FVector QuantumVec(Settings->PositionDistanceThreshold);
+		FVector QuantizedPosition = ActorSpatialPosition / QuantumVec;
+		QuantizedPosition.X = FMath::RoundToZero(QuantizedPosition.X);
+		QuantizedPosition.Y = FMath::RoundToZero(QuantizedPosition.Y);
+		QuantizedPosition.Z = FMath::RoundToZero(QuantizedPosition.Z);
+		QuantizedPosition *= QuantumVec;
+
+		if (QuantizedPosition == LastPositionSinceUpdate)
+		{
+			return;
+		}
+		LastPositionSinceUpdate = QuantizedPosition;
+	}
+	else
+	{
+		// Check that the Actor has moved sufficiently far to be updated
+		const float SpatialPositionThresholdSquared = FMath::Square(Settings->PositionDistanceThreshold);
+		if (FVector::DistSquared(ActorSpatialPosition, LastPositionSinceUpdate) < SpatialPositionThresholdSquared)
+		{
+			return;
+		}
+		LastPositionSinceUpdate = ActorSpatialPosition;
 	}
 
-	LastPositionSinceUpdate = ActorSpatialPosition;
 	TimeWhenPositionLastUpdated = NetDriver->Time;
 
 	SendPositionUpdate(Actor, EntityId, LastPositionSinceUpdate);
@@ -1198,3 +1217,4 @@ void USpatialActorChannel::ClientProcessOwnershipChange(bool bNewNetOwned)
 		Sender->SendComponentInterestForActor(this, GetEntityId(), bNetOwned);
 	}
 }
+

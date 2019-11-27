@@ -127,6 +127,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "SpatialOS Position Updates")
 	float PositionDistanceThreshold;
 
+	/** If set, position updates will be constrained to a latice determined by PositionDistanceThreshold. This helps when de-duplicating interest queries in the runtime layer.*/
+	UPROPERTY(EditAnywhere, config, Category = "SpatialOS Position Updates")
+	bool bQuantizeSpatialPositionUpdates;
+
 	/** Metrics about client and server performance can be reported to SpatialOS to monitor a deployments health.*/
 	UPROPERTY(EditAnywhere, config, Category = "Metrics")
 	bool bEnableMetrics;

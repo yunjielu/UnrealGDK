@@ -28,6 +28,7 @@ USpatialGDKSettings::USpatialGDKSettings(const FObjectInitializer& ObjectInitial
 	, QueuedIncomingRPCWaitTime(1.0f)
 	, PositionUpdateFrequency(1.0f)
 	, PositionDistanceThreshold(100.0f) // 1m (100cm)
+	, bQuantizeSpatialPositionUpdates(false)
 	, bEnableMetrics(true)
 	, bEnableMetricsDisplay(false)
 	, MetricsReportRate(2.0f)
