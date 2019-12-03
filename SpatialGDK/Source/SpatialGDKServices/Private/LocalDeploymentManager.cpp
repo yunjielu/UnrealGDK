@@ -154,6 +154,8 @@ void FLocalDeploymentManager::RefreshServiceStatus()
 			// It's possible that GEditor won't exist when shutting down.
 			if (GEditor != nullptr)
 			{
+				SetRedeployRequired();
+
 				// Start checking for the service status.
 				FTimerHandle RefreshTimer;
 				GEditor->GetTimerManager()->SetTimer(RefreshTimer, [this]()
