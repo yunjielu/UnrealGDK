@@ -20,7 +20,8 @@ public class SpatialGDKTests : ModuleRules
 				"EngineSettings",
 				"UnrealEd",
 				"Json",
-				"JsonUtilities"
+				"JsonUtilities",
+				"FunctionalTesting"
 			});
 	}
 }
