@@ -10,11 +10,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Templates/SharedPointer.h"
 #include "SpatialGDKEditorSettings.h"
-<<<<<<< HEAD
-#include "SpatialGDKServicesConstants.h"
-=======
 #include "SpatialGDKEditorToolbar.h"
->>>>>>> preview
+#include "SpatialGDKServicesConstants.h"
 #include "SpatialGDKServicesModule.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Input/SButton.h"

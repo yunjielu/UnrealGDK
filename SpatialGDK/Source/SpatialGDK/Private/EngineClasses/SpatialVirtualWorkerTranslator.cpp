@@ -22,7 +22,6 @@ void SpatialVirtualWorkerTranslator::Init(UAbstractLBStrategy* InLoadBalanceStra
 	USpatialWorkerConnection* InConnection,
 	PhysicalWorkerName InWorkerId)
 {
-<<<<<<< HEAD
 	LoadBalanceStrategy = InLoadBalanceStrategy;
 
 	check(InStaticComponentView != nullptr);
@@ -35,11 +34,6 @@ void SpatialVirtualWorkerTranslator::Init(UAbstractLBStrategy* InLoadBalanceStra
 	Connection = InConnection;
 
 	WorkerId = InWorkerId;
-=======
-	NetDriver = InNetDriver;
-	// If this is being run from tests, NetDriver will be null.
-	WorkerId = (NetDriver != nullptr && NetDriver->Connection != nullptr) ? NetDriver->Connection->GetWorkerId() : "InvalidWorkerId";
->>>>>>> preview
 }
 
 void SpatialVirtualWorkerTranslator::AddVirtualWorkerIds(const TSet<VirtualWorkerId>& InVirtualWorkerIds)

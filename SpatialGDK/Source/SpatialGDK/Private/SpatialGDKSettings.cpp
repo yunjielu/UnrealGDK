@@ -41,7 +41,6 @@ USpatialGDKSettings::USpatialGDKSettings(const FObjectInitializer& ObjectInitial
 	, bEnableOffloading(false)
 	, ServerWorkerTypes({ SpatialConstants::DefaultServerWorkerType })
 	, WorkerLogLevel(ESettingsWorkerLogVerbosity::Warning)
-<<<<<<< HEAD
 	, SpatialDebuggerClassPath(TEXT("/SpatialGDK/SpatialDebugger/BP_SpatialDebugger.BP_SpatialDebugger_C"))
 	, bEnableUnrealLoadBalancer(false)
 	, bUseRPCRingBuffers(false)
@@ -54,9 +53,6 @@ USpatialGDKSettings::USpatialGDKSettings(const FObjectInitializer& ObjectInitial
 	, UdpClientUpstreamUpdateIntervalMS(10)
 	, UdpClientDownstreamUpdateIntervalMS(10)
 	// TODO - end
-=======
-	, bEnableUnrealLoadBalancer(false)
->>>>>>> preview
 {
 	DefaultReceptionistHost = SpatialConstants::LOCAL_HOST;
 }

@@ -428,13 +428,6 @@ void USpatialNetDriver::CreateAndInitializeCoreClasses()
 	PlayerSpawner = NewObject<USpatialPlayerSpawner>();
 	SnapshotManager = MakeUnique<SpatialSnapshotManager>();
 	SpatialMetrics = NewObject<USpatialMetrics>();
-<<<<<<< HEAD
-=======
-	if (GetDefault<USpatialGDKSettings>()->bEnableUnrealLoadBalancer)
-	{
-		VirtualWorkerTranslator = MakeUnique<SpatialVirtualWorkerTranslator>();
-	}
->>>>>>> preview
 
 	const USpatialGDKSettings* SpatialSettings = GetDefault<USpatialGDKSettings>();
 #if !UE_BUILD_SHIPPING
@@ -495,20 +488,8 @@ void USpatialNetDriver::CreateAndInitializeCoreClasses()
 	Dispatcher->Init(Receiver, StaticComponentView, SpatialMetrics);
 	Sender->Init(this, &TimerManager);
 	Receiver->Init(this, &TimerManager);
-<<<<<<< HEAD
 	GlobalStateManager->Init(this);
 	SnapshotManager->Init(Connection, GlobalStateManager, Receiver);
-=======
-	GlobalStateManager->Init(this, &TimerManager);
-	if (GetDefault<USpatialGDKSettings>()->bEnableUnrealLoadBalancer)
-	{
-		VirtualWorkerTranslator->Init(this);
-		// TODO(zoning): This currently hard codes the desired number of virtual workers. This should be retrieved
-		// from the configuration.
-		VirtualWorkerTranslator->SetDesiredVirtualWorkerCount(2);
-	}
-	SnapshotManager->Init(this);
->>>>>>> preview
 	PlayerSpawner->Init(this, &TimerManager);
 	SpatialMetrics->Init(Connection, NetServerMaxTickRate, IsServer());
 	SpatialMetrics->ControllerRefProvider.BindUObject(this, &USpatialNetDriver::GetCurrentPlayerControllerRef);

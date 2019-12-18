@@ -4,8 +4,7 @@ All notable changes to the SpatialOS Game Development Kit for Unreal will be doc
 The format of this Changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<<<<<<< HEAD
-## [Unreleased-`x.y.z`] - 2019-xx-xx
+## [Unreleased-`x.y.z`] - 2020-xx-xx
 - Minor spelling fix to connection log message
 - The GDK now uses SpatialOS `14.2.1`.
 - Added %s token to debug strings in GlobalStateManager to display actor class name in log
@@ -34,8 +33,20 @@ Usage: `DeploymentLauncher createsim <project-name> <assembly-name> <target-depl
 - Enabled the SpatialOS toolbar for MacOS.
 - Added a menu item to push additional arguments for iOS devices.
 - Improved workflow around schema generation issues and launching local builds. A warning will now show if attempting to run a local deployment after a schema error.
-=======
-## [Unreleased-`x.y.z`] - 20xx-xx-xx
+
+## Bug fixes:
+- Fixed a bug that caused queued RPCs to spam logs when an entity is deleted.
+- Take into account OverrideSpatialNetworking command line argument as early as possible (LocalDeploymentManager used to query bSpatialNetworking before the command line was parsed).
+- Servers maintain interest in AlwaysRelevant Actors.
+- The default cloud launch configuration is now empty.
+- Fixed an crash caused by attempting to read schema from an unloaded class.
+- Unresolved object references in replicated arrays of structs should now be properly handled and eventually resolved.
+- Fix tombstone-related assert that could fire and bring down the editor.
+- Actors placed in the level with bNetLoadOnClient=false that go out of view will now be reloaded if they come back into view.
+- Fix crash in SpatialDebugger caused by dereference of invalid weak pointer.
+- Fixed connection error when using spatial cloud connect external.
+- The command line argument "receptionistHost <URL>" will now not override connections to "127.0.0.1".
+- The receptionist will now be used for appropriate URLs after connecting to a locator URL.
 
 ## [`0.8.0-preview`] - 2019-12-17
 
@@ -48,7 +59,6 @@ Usage: `DeploymentLauncher createsim <project-name> <assembly-name> <target-depl
 1. Run `Setup.bat`, which is located in the root directory of the `UnrealEngine` repository.
 1. Run `GenerateProjectFiles.bat`, which is in the same root directory.
 For more information, check the [Keep your GDK up to date](https://docs.improbable.io/unreal/preview/content/upgrading) SpatialOS documentation.
-
 
 ### Features:
 - You can now call `SpatialToggleMetricsDisplay` from the console in your Unreal clients in order to view metrics. `bEnableMetricsDisplay` must be enabled on clients where you want to use this feature.
@@ -63,7 +73,6 @@ For more information, check the [Keep your GDK up to date](https://docs.improbab
 - In Example Project, the default lobby timer has decreased from 15 seconds to 3 seconds so you don't have to wait for your playtest to start.
 - Added in-editor support for exposing a local runtime at a particular IP address. This offers the same functionality as the `--runtime_ip` option in the SpatialOS CLI.
 - Spatial networking is now always enabled in built assemblies.
->>>>>>> preview
 
 ### Bug fixes:
 - Fixed a bug that could cause name collisions in schema generated for sublevels.
@@ -72,24 +81,11 @@ For more information, check the [Keep your GDK up to date](https://docs.improbab
 - Fixed a bug that caused entity pool reservations to cease after a request times out.
 - Running `BuildWorker.bat` for `SimulatedPlayer` no longer fails if the project path has a space in it.
 - Fixed a crash when starting PIE with out-of-date schema.
-<<<<<<< HEAD
-- Fixed a bug that caused queued RPCs to spam logs when an entity is deleted.
-- Take into account OverrideSpatialNetworking command line argument as early as possible (LocalDeploymentManager used to query bSpatialNetworking before the command line was parsed).
-- Servers maintain interest in AlwaysRelevant Actors.
-- The default cloud launch configuration is now empty.
-- Fixed an crash caused by attempting to read schema from an unloaded class.
-- Unresolved object references in replicated arrays of structs should now be properly handled and eventually resolved.
-- Fix tombstone-related assert that could fire and bring down the editor.
-- Actors placed in the level with bNetLoadOnClient=false that go out of view will now be reloaded if they come back into view.
-- Fix crash in SpatialDebugger caused by dereference of invalid weak pointer
-- Fixed connection error when using spatial cloud connect external
-=======
 - Fixed an issue where launching a cloud deployment with an invalid assembly name or deployment name wouldn't show a helpful error message.
 
 ### Internal:
 Features listed in the internal section are not ready to use but, in the spirit of open development, we detail every change we make to the GDK.
 - We've added a partial loadbalancing framework. When this is completed in a future release, you will be able to control loadbalancing using server-workers.
->>>>>>> preview
 
 ## [`0.7.1-preview`] - 2019-12-06
 
@@ -163,12 +159,7 @@ Features listed in the internal section are not ready to use but, in the spirit 
 - Muticast RPCs that are sent shortly after an actor is created are now correctly processed by all clients.
 - When replicating an actor, the owner's Spatial position will no longer be used if it isn't replicated.
 - Fixed a crash upon checking out an actor with a deleted static subobject.
-<<<<<<< HEAD
 - Fixed an issue where launching a cloud deployment with an invalid assembly name or deployment name wouldn't show a helpful error message.
-- The command line argument "receptionistHost <URL>" will now not overide connections to "127.0.0.1".
-- The receptionist will now be used for appropriate URLs after connecting to a locator URL.
-=======
->>>>>>> preview
 
 ## [`0.6.2`] - 2019-10-10
 
