@@ -270,6 +270,15 @@ void USpatialWorkerConnection::ConnectToLocator()
 
 	// Connect to the locator on the default port(0 will choose the default)
 	WorkerLocator = Worker_Locator_Create(TCHAR_TO_UTF8(*LocatorConfig.LocatorHost), SpatialConstants::LOCATOR_PORT, &LocatorParams);
+<<<<<<< HEAD
+=======
+
+	// TODO UNR-1271: Move creation of connection parameters into a function somehow
+	Worker_ConnectionParameters ConnectionParams = Worker_DefaultConnectionParameters();
+	FTCHARToUTF8 WorkerTypeCStr(*LocatorConfig.WorkerType);
+	ConnectionParams.worker_type = WorkerTypeCStr.Get();
+	ConnectionParams.enable_protocol_logging_at_startup = LocatorConfig.EnableProtocolLoggingAtStartup;
+>>>>>>> preview
 
 	Worker_ConnectionFuture* ConnectionFuture = Worker_Locator_ConnectAsync(WorkerLocator, &ConnectionConfig.Params);
 

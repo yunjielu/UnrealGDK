@@ -588,8 +588,11 @@ namespace Improbable
             Console.WriteLine("Usage:");
             Console.WriteLine("DeploymentLauncher create <project-name> <assembly-name> <main-deployment-name> <main-deployment-json> <main-deployment-snapshot> <main-deployment-region> [<sim-deployment-name> <sim-deployment-json> <sim-deployment-region> <num-sim-players>]");
             Console.WriteLine($"  Starts a cloud deployment, with optionally a simulated player deployment. The deployments can be started in different regions ('EU', 'US', 'AP' and 'CN').");
+<<<<<<< HEAD
             Console.WriteLine("DeploymentLauncher createsim <project-name> <assembly-name> <target-deployment-name> <sim-deployment-name> <sim-deployment-json> <sim-deployment-region> <num-sim-players> <auto-connect>");
             Console.WriteLine($"  Starts a simulated player deployment. Can be started in a different region from the target deployment ('EU', 'US', 'AP' and 'CN').");
+=======
+>>>>>>> preview
             Console.WriteLine("DeploymentLauncher stop <project-name> <main-deployment-region> [deployment-id]");
             Console.WriteLine("  Stops the specified deployment within the project.");
             Console.WriteLine("  If no deployment id argument is specified, all active deployments started by the deployment launcher in the project will be stopped.");
@@ -600,10 +603,16 @@ namespace Improbable
         private static int Main(string[] args)
         {
             if (args.Length == 0 ||
+<<<<<<< HEAD
                 (args[0] == "create" && (args.Length != 11 && args.Length != 7)) ||
                 (args[0] == "createsim" && args.Length != 9) ||
                 (args[0] == "stop" && (args.Length != 3 && args.Length != 4)) ||
                 (args[0] == "list" && args.Length != 3))
+=======
+                args[0] == "create" && (args.Length != 11 && args.Length != 7) ||
+                args[0] == "stop" && (args.Length != 3 && args.Length != 4) ||
+                args[0] == "list" && args.Length != 4)
+>>>>>>> preview
             {
                 ShowUsage();
                 return 1;

@@ -219,8 +219,13 @@ const uint16 DEFAULT_PORT = 7777;
 
 const float ENTITY_QUERY_RETRY_WAIT_SECONDS = 3.0f;
 
+<<<<<<< HEAD
 const Worker_ComponentId MIN_EXTERNAL_SCHEMA_ID = 1000;
 const Worker_ComponentId MAX_EXTERNAL_SCHEMA_ID = 2000;
+=======
+	const FString LOCATOR_HOST = TEXT("locator.improbable.io");
+	const uint16 LOCATOR_PORT  = 443;
+>>>>>>> preview
 
 const FString SPATIALOS_METRICS_DYNAMIC_FPS = TEXT("Dynamic.FPS");
 

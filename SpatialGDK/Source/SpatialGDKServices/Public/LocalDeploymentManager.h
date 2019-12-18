@@ -21,6 +21,8 @@ public:
 	void SPATIALGDKSERVICES_API SetInChina(bool IsInChina);
 	void SPATIALGDKSERVICES_API Init(FString RuntimeIPToExpose);
 
+	void SPATIALGDKSERVICES_API SetInChina(bool IsInChina);
+
 	void SPATIALGDKSERVICES_API RefreshServiceStatus();
 
 	bool CheckIfPortIsBound(int32 Port);
