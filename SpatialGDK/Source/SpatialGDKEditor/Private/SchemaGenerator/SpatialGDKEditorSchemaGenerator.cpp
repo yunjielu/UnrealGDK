@@ -843,6 +843,7 @@ bool SpatialGDKGenerateSchemaForClasses(TSet<UClass*> Classes, FString SchemaOut
 
 	for (const auto& Class : Classes)
 	{
+#if 0
 		FSchemaClassCache* SchemaClassBuilder = new FSchemaClassCache(Class);
 		TArray<uint8> OutData;
 		bool Computed = false;
@@ -867,7 +868,7 @@ bool SpatialGDKGenerateSchemaForClasses(TSet<UClass*> Classes, FString SchemaOut
 				}
 			}
 		}
-
+#endif
 		if (SchemaGeneratedClasses.Contains(Class))
 		{
 			continue;
