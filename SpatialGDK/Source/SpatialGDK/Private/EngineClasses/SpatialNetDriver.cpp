@@ -1528,6 +1528,15 @@ void USpatialNetDriver::TickDispatch(float DeltaTime)
 
 	if (Connection != nullptr)
 	{
+		const USpatialGDKSettings* SpatialGDKSettings = GetDefault<USpatialGDKSettings>();
+		if (SpatialGDKSettings->bRunSpatialWorkerConnectionOnGameThread)
+		{
+			if (Connection != nullptr && Connection->IsConnected())
+			{
+				Connection->QueueLatestOpList();
+			}
+		}
+
 		TArray<Worker_OpList*> OpLists = Connection->GetOpList();
 
 		// Servers will queue ops at startup until we've extracted necessary information from the op stream
@@ -1673,14 +1682,6 @@ void USpatialNetDriver::PollPendingLoads()
 void USpatialNetDriver::TickFlush(float DeltaTime)
 {
 	const USpatialGDKSettings* SpatialGDKSettings = GetDefault<USpatialGDKSettings>();
-
-	if (SpatialGDKSettings->bRunSpatialWorkerConnectionOnGameThread)
-	{
-		if (Connection != nullptr && Connection->IsConnected())
-		{
-			Connection->QueueLatestOpList();
-		}
-	}
 
 	PollPendingLoads();
 

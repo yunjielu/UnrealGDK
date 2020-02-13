@@ -239,7 +239,7 @@ public:
 	FWorkerType LoadBalancingWorkerType;
 
 	/** EXPERIMENTAL: Run SpatialWorkerConnection on Game Thread. */
-	UPROPERTY(Config)
+	UPROPERTY(EditAnywhere, Config, Category = "Load")
 	bool bRunSpatialWorkerConnectionOnGameThread;
 
 	/** RPC ring buffers is enabled when either the matching setting is set, or load balancing is enabled */
