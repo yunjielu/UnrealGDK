@@ -436,7 +436,7 @@ bool USpatialLatencyTracer::ContinueLatencyTrace_Internal(const AActor* Actor, c
 		return false;
 	}
 
-	auto TraceTypeToStr = [](ETraceType Type) -> TCHAR*
+	auto TraceTypeToStr = [](ETraceType Type) -> const TCHAR*
 	{
 		switch (Type)
 		{
