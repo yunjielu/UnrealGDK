@@ -73,6 +73,10 @@ Usage: `DeploymentLauncher createsim <project-name> <assembly-name> <target-depl
 - Added `OnClientOwnershipGained` and `OnClientOwnershipLost` events on Actors and ActorComponents. These events trigger when an Actor is added to or removed from the ownership hierarchy of a client's PlayerController.
 - You can now generate valid schema for classes that start with a leading digit. The generated schema class will be prefixed with `ZZ` internally.
 - Handover properties will be automatically replicated when required for load balancing. `bEnableHandover` is off by default.
+- Worker types are now defined in the runtime settings.
+- Local deployment will now use the map's load balancing strategy to get the launch configuration settings. The launch configuration file is saved per-map in the Intermediate/Improbable folder.
+- A launch configuration editor has been added under the Deploy toolbar button.
+- The cloud deployment window can now generate a launch configuration from the current map or use the launch configuration editor.
 
 ## Bug fixes:
 - Fixed a bug that caused queued RPCs to spam logs when an entity is deleted.
